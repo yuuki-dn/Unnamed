@@ -1,14 +1,13 @@
 import disnake
 from disnake.ext import commands
-from botbase import BotBase
 
 class AdminCommands(commands.Cog):
-    def __init__(self, bot: BotBase):
-        self.bot: BotBase = bot
+    def __init__(self, bot: commands.Bot):
+        self.bot: commands.Bot = bot
     
     
     @commands.slash_command(name="admin")
-    async def admin(self) -> None: pass
+    async def admin(self, inter: disnake.ApplicationCommandInteraction) -> None: pass
     
     
     @admin.sub_command(

@@ -1,3 +1,4 @@
 disnake==2.9.2
 python-dotenv==1.0.1
 mysql-connector-python==9.0.0
+colorama==0.4.6

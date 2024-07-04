@@ -5,11 +5,10 @@ PREFIX = "$"  # Kí hiệu để gọi các lệnh văn bản
 MASTER_GUILD_ID = 100  # ID Server chính
 
 INTENTS = disnake.Intents(
-    value=0,
     guilds=True,
-    guild_messages=True,
+    guild_messages=True,    
     guild_reactions=True,
-    members=True,
+    message_content=True,
     moderation=True,
     voice_states=True,
 )
