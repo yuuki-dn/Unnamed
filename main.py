@@ -1,6 +1,7 @@
 from botbase import BotBase
 
 import logging
+import gc
 from os import makedirs
 from sys import stdout, stderr
 
@@ -58,6 +59,9 @@ logging.basicConfig(
     handlers=[infoHandler, warningHandler, errorHandler, fileHandler]
 )
 
+# Garbage collect
+gc.collect()
+gc.enable()
 
 # Initalize instance
 BotBase()
