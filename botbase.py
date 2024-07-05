@@ -5,7 +5,7 @@ from os import environ, _Environ
 from dotenv import load_dotenv
 import logging
 
-from configuration import PREFIX, INTENTS, COMMAND_SYNC_FLAGS
+from utils.configuration import PREFIX, INTENTS, COMMAND_SYNC_FLAGS
 
 from administrator.cog import AdminCommands
 from chatbot.cog import ChatBot
@@ -16,7 +16,7 @@ from wordchain.cog import WordChain
 
 class BotBase(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
-        self.logger = logging.getLogger("BotBase")
+        self.logger = logging.getLogger(__name__)
         load_dotenv()
         self.env: _Environ = environ
         self.boot_time = disnake.utils.utcnow()
@@ -48,6 +48,5 @@ class BotBase(commands.AutoShardedBot):
         self.logger.info(f"Khởi tạo thành công! Đã đăng nhập với tên {self.user.name} (UID: {self.user.id})")
     
 
-    # async def close(self) -> None:
-    #     await super(commands.AutoShardedBot, self).close()
-    #     exit()
+    def stop(self) -> None:
+        exit()
