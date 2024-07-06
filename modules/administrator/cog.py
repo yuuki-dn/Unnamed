@@ -1,9 +1,18 @@
+from botbase import BotBase
+
 import disnake
 from disnake.ext import commands
 
 class AdminCommands(commands.Cog):
-    def __init__(self, bot: commands.Bot):
-        self.bot: commands.Bot = bot
+    def __init__(self, bot: BotBase):
+        self.bot: BotBase = bot
+        
+    
+    @commands.slash_command(
+        name="reactionrole",
+        default_member_permissions=disnake.Permissions(administrator=True)
+    )
+    async def reaction_role(self, inter: disnake.ApplicationCommandInteraction): pass
     
     
     @commands.slash_command(name="admin")
