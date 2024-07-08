@@ -26,4 +26,4 @@ bot.add_cog(MusicPlayer(bot))
 bot.add_cog(WordChain(bot))
 
 # Start
-bot.activate()
+bot.run()

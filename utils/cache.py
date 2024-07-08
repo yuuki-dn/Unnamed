@@ -1,60 +1,82 @@
-from typing import Generic, TypeVar, Dict, Optional
+from datetime import datetime
 
-K = TypeVar('K')
-V = TypeVar('V')
+def get_current_time() -> int:
+    return int(datetime.now().timestamp())
 
-class LRUCacheNode(Generic[K, V]):
-    __slots__ = "key", "value", "prev", "next"
+class LRUCacheNode:
+    __slots__ = "key", "value", "last_access_timestamp", "prev_key", "next_key"
     
-    def __init__(self, key: K, value: V):
+    def __init__(self, key, value):
         self.key = key
         self.value = value
-        self.prev: Optional['LRUCacheNode[K, V]'] = None
-        self.next: Optional['LRUCacheNode[K, V]'] = None
+        self.last_access_timestamp: int = get_current_time()
+        self.prev_key: object | None = None
+        self.next_key: object | None = None
         
 
-class LRUCache(Generic[K, V]):
-    __slots__ = "capacity", "cache", "head", "tail"
+class LRUCache:
+    __slots__ = "capacity", "expire_seconds", "cache", "head_key", "tail_key"
     
-    def __init__(self, capacity: int):
-        self.capacity = capacity
-        self.cache: Dict[K, LRUCacheNode[K, V]] = {}
-        self.head: LRUCacheNode[K, V] = LRUCacheNode(None, None)  # type: ignore
-        self.tail: LRUCacheNode[K, V] = LRUCacheNode(None, None)  # type: ignore
-        self.head.next = self.tail
-        self.tail.prev = self.head
+    def __init__(self, capacity: int, expire_seconds: int):
+        self.capacity: int = capacity
+        self.expire_seconds: int = expire_seconds
+        self.cache: dict[object, LRUCacheNode] = {}
+        self.head_key = None
+        self.tail_key = None
 
-    def _remove(self, node: LRUCacheNode[K, V]) -> None:
-        prev = node.prev
-        next = node.next
-        if prev is not None and next is not None:
-            prev.next = next
-            next.prev = prev
+    def _remove(self, key: object) -> None:
+        node = self.cache[key]
+        prev_key = node.prev_key
+        next_key = node.next_key
+        
+        if prev_key is not None:
+            self.cache[prev_key].next_key = next_key
+        else:
+            self.head_key = next_key
+            
+        if next_key is not None:
+            self.cache[next_key].prev_key = prev_key
+        else:
+            self.tail_key = prev_key
 
-    def _add(self, node: LRUCacheNode[K, V]) -> None:
-        prev = self.tail.prev
-        if prev is not None:
-            prev.next = node
-            node.prev = prev
-            node.next = self.tail
-            self.tail.prev = node
+    def _add(self, key: object) -> None:
+        node = self.cache[key]
+        node.last_access_timestamp = get_current_time()
+        node.prev_key = self.tail_key
+        node.next_key = None
+        
+        if self.tail_key is not None:
+            self.cache[self.tail_key].next_key = key
+        else:
+            self.head_key = key
+        
+        self.tail_key = key
 
-    def get(self, key: K) -> Optional[V]:
+    def get(self, key: object) -> object | None:
+        if key not in self.cache:
+            raise KeyError(f"Key {key} not found")
+        node = self.cache[key]
+        if (self.expire_seconds > 0) and (node.last_access_timestamp + self.expire_seconds < get_current_time()):
+            self._remove(key)
+            del self.cache[key]
+            raise KeyError(f"Key {key} has expired")
+        self._remove(key)
+        self._add(key)
+        return node.value
+
+    def put(self, key: object, value: object) -> None:
         if key in self.cache:
-            node = self.cache[key]
-            self._remove(node)
-            self._add(node)
-            return node.value
-        return None
-
-    def put(self, key: K, value: V) -> None:
-        if key in self.cache:
-            self._remove(self.cache[key])
+            self._remove(key)
         node = LRUCacheNode(key, value)
-        self._add(node)
         self.cache[key] = node
+        self._add(key)
         if len(self.cache) > self.capacity:
-            lru = self.head.next
-            if lru is not None:
-                self._remove(lru)
-                del self.cache[lru.key]
+            lru_key = self.head_key
+            if lru_key is not None:
+                self._remove(lru_key)
+                del self.cache[lru_key]
+    
+    def delete(self, key: object) -> None:
+        if key in self.cache:
+            self._remove(key)
+            del self.cache[key]

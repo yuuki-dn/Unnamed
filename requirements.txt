@@ -1,5 +1,5 @@
 disnake==2.9.2
 python-dotenv==1.0.1
-mysql-connector-python==9.0.0
 colorama==0.4.6
-marisa-trie==1.2.0
+marisa-trie==1.2.0 
+aiomysql==0.2.0

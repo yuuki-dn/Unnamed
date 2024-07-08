@@ -2,7 +2,7 @@ import disnake
 from disnake.ext import commands
 
 PREFIX = "$"  # Kí hiệu để gọi các lệnh văn bản
-MASTER_GUILD_ID = 100  # ID Server chính
+MASTER_GUILD_ID = 1208756727323955250  # ID Server chính
 
 INTENTS = disnake.Intents(
     guilds=True,
