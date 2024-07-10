@@ -1,0 +1,20 @@
+{
+    "chat_xp_min": 15,
+    "chat_xp_max": 40,
+    "chat_xp_cooldown": 45,
+    "chat_effective_channel": [101],
+    "voice_xp_min": 15,
+    "voice_xp_max": 40,
+    "voice_xp_cooldown": 150,
+    "booster_extra_xp_percent": 10,
+    "level_up_notification": true,
+    "level_role": [
+        { "level": 5, "role_id": 101 },
+        { "level": 10, "role_id": 102 },
+        { "level": 20, "role_id": 103 },
+        { "level": 40, "role_id": 104 },
+        { "level": 60, "role_id": 105 },
+        { "level": 80, "role_id": 106 },
+        { "level": 100, "role_id": 107 }
+    ]
+}

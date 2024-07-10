@@ -27,18 +27,15 @@ class Database():
     
     async def connect(self, host: str, port: int, username: str, password: str, schema: str) -> None:
         self.logger.info("Đang kết nối tới cơ sở dữ liệu MySQL")
-        self.connection = await aiomysql.connect(
-            host=host,
-            port=port,
-            user=username,
-            password=password,
-            db=schema
-        )
         try:
-            with open("utils/init.sql") as f:
-                init_cursor: Cursor = await self.connection.cursor()
-                await init_cursor.execute(f.read())
-                self.logger.info("Khởi tạo cơ sở dữ liệu thành công")
+            self.connection = await aiomysql.connect(
+                host=host,
+                port=port,
+                user=username,
+                password=password,
+                db=schema
+            )
+            self.logger.info("Khởi tạo cơ sở dữ liệu thành công")
         except Exception as e:
             self.logger.error("Khởi tạo cơ sở dữ liệu thất bại\n" + repr(e))
         

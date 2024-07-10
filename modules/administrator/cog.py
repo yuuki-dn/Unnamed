@@ -11,11 +11,52 @@ class AdminCommands(commands.Cog):
         self.bot: BotBase = bot
         self.logger: logging.Logger = logging.getLogger(__name__)
         
-    # @commands.slash_command(
-    #     name="reactionrole",
-    #     default_member_permissions=disnake.Permissions(administrator=True)
-    # )
-    # async def reaction_role(self, inter: disnake.ApplicationCommandInteraction): pass
+    @commands.slash_command(
+        name="reactionrole",
+        default_member_permissions=disnake.Permissions(administrator=True)
+    )
+    async def reaction_role(self, inter: disnake.ApplicationCommandInteraction): pass
+    
+    @reaction_role.sub_command(
+        name="add",
+        description="Tự động cấp vai trò khi người dùng thêm biểu cảm vào tin nhắn",
+        options=[
+            disnake.Option(
+                name="message_id",
+                description="ID tin nhắn",
+                type=disnake.OptionType.integer,
+                required=True
+            ),
+            disnake.Option(
+                name="emoji",
+                description="Emoji",
+                type=disnake.OptionType.string,
+                required=True
+            ),
+            disnake.Option(
+                name="role",
+                description="Vai trò sẽ được tự động cấp",
+                type=disnake.OptionType.role,
+                required=True
+            )
+        ]
+    )
+    async def add_reaction_role_message(self, inter: disnake.ApplicationCommandInteraction):
+        # TODO: mai làm 
+        pass
+    
+    @reaction_role.sub_command(
+        name="delete",
+        description="Xoá tự động cấp vai trò khi người dùng thêm biểu cảm vào tin nhắn",
+        options=[
+            disnake.Option(
+                name="message_id",
+                description="ID tin nhắn"
+            )
+        ]
+    )
+    async def remove_reaction_role_message(self, inter: disnake.ApplicationCommandInteraction):
+        pass
     
     @commands.slash_command(
         name="system",

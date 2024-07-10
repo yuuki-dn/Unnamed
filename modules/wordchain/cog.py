@@ -13,6 +13,11 @@ logger: logging.Logger = logging.getLogger(__name__)
 class ChainNotMatchException(Exception):
     def __init__(self, *args, **kwargs):
         return super().__init__("Từ nhập vào không khớp với chuỗi từ hiện tại", *args, **kwargs)
+    
+
+class  CurrentIsLastPlayer(Exception):
+    def __init__(self, *args, **kwargs):
+        return super().__init__("Người chơi hiện tại vừa chơi lượt trước đó", *args, **kwargs)
 
 
 class DuplicateWordError(Exception):
@@ -22,13 +27,15 @@ class DuplicateWordError(Exception):
         
     
 class GuildChain(LRUCache):
-    __slots__ = "chain", "previous_last_character"
+    __slots__ = "chain", "previous_last_character", "previous_player_id"
     
     def __init__(self):
         self.previous_last_character = ""
+        self.previous_player_id = 0
         super().__init__(5000, -1)
         
-    def add_word(self, word: str, message_url: str):
+    def add_word(self, word: str, message_url: str, player_id: int):
+        if self.previous_player_id == player_id: raise CurrentIsLastPlayer()
         word = reform_word(word)
         if not word.startswith(self.previous_last_character): raise ChainNotMatchException()
         try: data = self.get(word)
@@ -36,6 +43,7 @@ class GuildChain(LRUCache):
         if data is not None: raise DuplicateWordError(word=word, previous_message_url=data)
         self.put(word, message_url)
         self.previous_last_character = word[-1]
+        self.previous_player_id = player_id
         
         
 GAME_ACTIVATED_NOTIFICATION_EMBED = disnake.Embed(
@@ -83,11 +91,13 @@ class WordChain(commands.Cog):
             chain.add_word(msg_split[0], message.jump_url)
             await message.add_reaction("✅")
         except DuplicateWordError as err:
-            await message.reply(f"❌ Từ này đã được sử dụng {err.previous_message_url}", fail_if_not_exists=False, delete_after=15)
+            await message.reply(f"⚠️ Từ này đã được sử dụng {err.previous_message_url}", fail_if_not_exists=False, delete_after=10)
+        except CurrentIsLastPlayer:
+            await message.reply(f"🕒 Vui lòng đợi người chơi khác điền từ của họ trước khi điền từ của bạn vào nhé", fail_if_not_exists=True, delete_after=10)
         except ChainNotMatchException:
-            await message.reply(f"❌ Từ của bạn không khớp chuỗi. Hãy chọn một từ khác bắt đầu bằng `{chain.previous_last_character}` nhé", fail_if_not_exists=False, delete_after=15)
+            await message.reply(f"❌ Hãy chọn một từ khác bắt đầu bằng `{chain.previous_last_character}` nhé", fail_if_not_exists=False, delete_after=10)
         except IllegalWordException:
-            await message.reply("❌ Vui lòng nhập một từ tiếng Anh hợp lệ, tối thiểu 3 chữ cái và không chứa kí tự đặc biệt", fail_if_not_exists=False, delete_after=15)
+            await message.reply("❌ Vui lòng nhập một từ tiếng Anh hợp lệ, tối thiểu 3 chữ cái và không chứa kí tự đặc biệt", fail_if_not_exists=False, delete_after=10)
             
         
     @commands.slash_command(
