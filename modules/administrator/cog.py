@@ -26,9 +26,35 @@ class AdminCommands(commands.Cog):
         self.logger: logging.Logger = logging.getLogger(__name__)
         self.guild_data: GuildData = bot.guild_data
         
-    @commands.Cog.listener
-    async def on_raw_reaction_add(event: disnake.RawReactionActionEvent):
-        pass
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, event: disnake.RawReactionActionEvent):
+        if event.guild_id is None: return
+        parsed_emoji = parse_emoji(event.emoji.__str__())
+        if parsed_emoji is None: return
+        guild_entity = await self.guild_data.get_guild(event.guild_id)
+        if event.message_id not in guild_entity.reaction_role_messages: return
+        reaction_role_message = await self.guild_data.get_guild_reaction_role_message(event.message_id, event.guild_id)
+        try: 
+            role_id = reaction_role_message.map[parsed_emoji]
+            await self.bot.http.add_role(event.guild_id, event.user_id, role_id)
+        except KeyError: return
+        except: self.logger.warning(f"(ID máy chủ {event.guild_id}): Không thể cấp vai trò {role_id} cho {event.user_id}")
+    
+    
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, event: disnake.RawReactionActionEvent):
+        if event.guild_id is None: return
+        parsed_emoji = parse_emoji(event.emoji.__str__())
+        if parsed_emoji is None: return
+        guild_entity = await self.guild_data.get_guild(event.guild_id)
+        if event.message_id not in guild_entity.reaction_role_messages: return
+        reaction_role_message = await self.guild_data.get_guild_reaction_role_message(event.message_id, event.guild_id)
+        try: 
+            role_id = reaction_role_message.map[parsed_emoji]
+            await self.bot.http.remove_role(event.guild_id, event.user_id, role_id)
+        except KeyError: return
+        except: self.logger.warning(f"(ID máy chủ {event.guild_id}): Không thể xoá vai trò {role_id} cho {event.user_id}")
+        
         
         
     @commands.slash_command(
