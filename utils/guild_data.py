@@ -9,7 +9,15 @@ class ReactionRoleMessageEntity:
     def __init__(self, message_id: int, guild_id: int):
         self.message_id = message_id
         self.guild_id = guild_id
-        self.map: dict[int, int] = {}
+        self.map: dict[str, int] = {}
+        
+    def copy(self):
+        copy = ReactionRoleMessageEntity(
+            self.message_id,
+            self.guild_id
+        )
+        copy.map = self.map.copy()
+        return copy
 
 
 class GuildEntity:
@@ -19,6 +27,14 @@ class GuildEntity:
         self.guild_id = guild_id
         self.wordchain_channel_id = wordchain_channel_id
         self.reaction_role_messages: set[int] = set()
+        
+    def copy(self):
+        copy = GuildEntity(
+            self.guild_id,
+            self.wordchain_channel_id,
+        )
+        copy.reaction_role_messages = self.reaction_role_messages.copy()
+        return copy
         
 
 class GuildData:
@@ -31,12 +47,13 @@ class GuildData:
     async def __fetch_reaction_role_message__(self, message_id: int, guild_id: int) -> ReactionRoleMessageEntity | None:
         try:
             cursor = await self.database.get_cursor()
-            await cursor.execute("SELECT `role_id`, `emoji_id` FROM `reaction_role_messages` WHERE `message_id` = %s", (message_id))
+            await cursor.execute("SELECT `emoji`, `role_id` FROM `reaction_role_messages` WHERE `message_id` = %s AND `guild_id` = %s", (message_id, guild_id))
             result: list = await cursor.fetchall()
             if result.__len__() == 0: return None
             entity = ReactionRoleMessageEntity(message_id, guild_id)
-            for data in result: entity.map[data[1]] = data[0]
+            for data in result: entity.map[data[0]] = data[1]
             await cursor.close()
+            return entity
         except Exception as err:
             self.logger.error(f"Truy vấn dữ liệu cho tin nhắn với ID: {message_id} thất bại\n" + repr(err))
             return None
@@ -47,7 +64,7 @@ class GuildData:
             await cursor.execute("SELECT `wordchain_channel_id` FROM `guilds` WHERE `guild_id` = %s", (guild_id))
             result = await cursor.fetchone()
             if result is None: return None
-            entity = GuildEntity(guild_id, self.database, result[0])
+            entity = GuildEntity(guild_id, result[0])
             await cursor.execute("SELECT `message_id` FROM `reaction_role_messages` WHERE `guild_id` = %s", (guild_id))
             result = await cursor.fetchall()
             for data in result: entity.reaction_role_messages.add(data[0])
@@ -59,21 +76,21 @@ class GuildData:
         
     async def get_guild(self, guild_id: int, create_if_not_exist: bool = True) -> GuildEntity | None:
         entity = None
-        try: entity = self.guild_cache[guild_id]
+        try: entity = self.guild_cache.get(guild_id)
         except KeyError:
             entity = await self.__fetch_guild__(guild_id)
             self.guild_cache.put(guild_id, entity)
-        if create_if_not_exist and (entity is None): entity = GuildEntity(guild_id, 0)
-        return entity
+        if create_if_not_exist and (entity is None): return GuildEntity(guild_id, 0)
+        return entity.copy() if entity is not None else entity
     
     async def get_guild_reaction_role_message(self, message_id: int, guild_id: int) -> ReactionRoleMessageEntity:
         entity = None
-        try: entity = self.reaction_role_message_cache[message_id]
+        try: entity = self.reaction_role_message_cache.get(message_id)
         except KeyError:
-            entity = await self.__fetch_reaction_role_message__(message_id)
+            entity = await self.__fetch_reaction_role_message__(message_id, guild_id)
             self.guild_cache.put(message_id, entity)
-        if entity is None: entity = ReactionRoleMessageEntity(message_id, guild_id)
-        return entity
+        if entity is None: return ReactionRoleMessageEntity(message_id, guild_id)
+        return entity.copy() if entity is not None else entity
     
     async def update_guild(self, entity: GuildEntity) -> None:
         try:
@@ -91,9 +108,10 @@ class GuildData:
  
     async def update_reaction_role_message(self, entity: ReactionRoleMessageEntity) -> None:
         try:
-            previous: ReactionRoleMessageEntity = await self.get_guild_reaction_role_message(entity.message_id)
+            guild_entity = await self.get_guild(entity.guild_id, False)
+            if guild_entity is None: await self.update_guild(await self.get_guild(entity.guild_id))
+            previous: ReactionRoleMessageEntity = await self.get_guild_reaction_role_message(entity.message_id, entity.guild_id)
             cursor = await self.database.get_cursor()
-            
             previous_key = set()
             for key in previous.map: previous_key.add(key)
             new_key = set()
@@ -101,15 +119,15 @@ class GuildData:
             
             for key in new_key.difference(previous_key):
                 # insert new
-                await cursor.execute("INSERT INTO `reaction_role_messages` (`message_id`, `emoji_id`, `role_id`) VALUE (%s, %s)", (entity.message_id, key, entity.map[key]))
+                await cursor.execute("INSERT INTO `reaction_role_messages` (`message_id`, `guild_id`, `emoji`, `role_id`) VALUE (%s, %s, %s, %s)", (entity.message_id, entity.guild_id, key, entity.map[key]))
             
             for key in new_key.intersection(previous_key):
                 # update exists
-                await cursor.execute("UPDATE `reaction_role_messages` SET `role_id` = %s WHERE `message_id` = %s AND `emoji_id` = %s", (entity.map[key], entity.message_id, key))
+                await cursor.execute("UPDATE `reaction_role_messages` SET `role_id` = %s WHERE `message_id` = %s AND `guild_id` = %s AND `emoji` = %s", (entity.map[key], entity.message_id, entity.guild_id, key))
                 
-            for key in previous_key.intersection(new_key):
+            for key in previous_key.difference(new_key):
                 # delete
-                await cursor.execute("DELETE FROM `reaction_role_messages` WHERE `message_id` = %s AND `emoji_id` = %s", (entity.message_id, key))
+                await cursor.execute("DELETE FROM `reaction_role_messages` WHERE `message_id` = %s AND `guild_id` = %s AND `emoji` = %s ", (entity.message_id, entity.guild_id, key))
                 
             await self.database.commit()
             await cursor.close()
@@ -129,17 +147,14 @@ class GuildData:
         except Exception as err:
             self.logger.error(f"Cập nhật dữ liệu cho máy chủ với ID: {guild_id} thất bại\n" + repr(err))
             
-    async def delete_reaction_role_message(self, message_id: int) -> None:
+    async def delete_reaction_role_message(self, message_id: int, guild_id: int) -> None:
         try:
             cursor = await self.database.get_cursor()
-            await cursor.execute("DELETE FROM `reaction_role_messages` WHERE `message_id` = %s", (message_id))
+            await cursor.execute("DELETE FROM `reaction_role_messages` WHERE `message_id` = %s AND `guild_id` = %s", (message_id, guild_id))
             await self.database.commit()
             await cursor.close()
-            try: 
-                entity: ReactionRoleMessageEntity = self.reaction_role_message_cache[message_id]
-                self.guild_cache.delete(entity.guild_id)
-            except KeyError: pass
-            finally: self.reaction_role_message_cache.delete(message_id)
+            self.guild_cache.delete(guild_id)
+            self.reaction_role_message_cache.delete(message_id)
         except Exception as err:
             self.logger.error(f"Cập nhật dữ liệu cho tin nhắn với ID: {message_id} thất bại\n" + repr(err))
         

@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS `reaction_role_messages` (
     `id` BIGINT NOT NULL AUTO_INCREMENT UNIQUE,
     `guild_id` BIGINT NOT NULL,
     `message_id` BIGINT NOT NULL,
+    `emoji` VARCHAR(45) NOT NULL,
     `role_id` BIGINT NOT NULL,
-    `emoji_id` BIGINT NOT NULL,
     PRIMARY KEY(`id`),
     CONSTRAINT `fk_guild_id`
         FOREIGN KEY (`guild_id`)

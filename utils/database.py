@@ -1,5 +1,4 @@
 import logging
-import signal
 import asyncio
 from os import _Environ
 
@@ -35,9 +34,9 @@ class Database():
                 password=password,
                 db=schema
             )
-            self.logger.info("Khởi tạo cơ sở dữ liệu thành công")
+            self.logger.info("Kết nối cơ sở dữ liệu thành công")
         except Exception as e:
-            self.logger.error("Khởi tạo cơ sở dữ liệu thất bại\n" + repr(e))
+            self.logger.error("Kết nối cơ sở dữ liệu thất bại\n" + repr(e))
         
     
     
