@@ -70,7 +70,6 @@ class WordChain(commands.Cog):
         self.guild_data: GuildData = bot.guild_data
         
     @commands.Cog.listener()
-    @commands.bot_has_permissions(administrator=True)
     async def on_message(self, message: disnake.Message):
         if message.guild is None: return
         if message.author.bot: return
@@ -112,14 +111,11 @@ class WordChain(commands.Cog):
         name="start",
         description="Kích hoạt trò chơi nối từ trên máy chủ ở kênh hiện tại"
     )
+    @commands.guild_only()
+    @commands.has_guild_permissions(administrator=True)
+    @commands.bot_has_guild_permissions(administrator=True)
+    @commands.cooldown(1, 60)
     async def start(self, inter: disnake.ApplicationCommandInteraction):
-        if inter.guild is None: return
-        if not inter.author.guild_permissions.administrator:
-            await inter.response.send_message("❌ Bạn cần có quyền `Quản trị máy chủ` để sử dụng lệnh này", ephemeral=True)
-            return
-        if not inter.me.guild_permissions.administrator:
-            await inter.response.send_message("❌ Bot cần có quyền `Quản trị máy chủ` để thực hiện các chức năng của trò chơi này", ephemeral=True)
-            return
         if not isinstance(inter.channel, disnake.TextChannel):
             await inter.response.send_message("❌ Trò chơi chỉ hoạt động trên kênh văn bản bình thường", ephemeral=True)
             return
@@ -139,6 +135,9 @@ class WordChain(commands.Cog):
         name="stop",
         description="Dừng trò chơi nối từ trên máy chủ"
     )
+    @commands.guild_only()
+    @commands.has_guild_permissions(administrator=True)
+    @commands.cooldown(1, 60)
     async def stop(self, inter: disnake.ApplicationCommandInteraction):
         if inter.guild is None: return
         if not inter.author.guild_permissions.administrator:

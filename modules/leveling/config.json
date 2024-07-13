@@ -2,10 +2,7 @@
     "chat_xp_min": 15,
     "chat_xp_max": 40,
     "chat_xp_cooldown": 45,
-    "chat_effective_channel": [101],
-    "voice_xp_min": 15,
-    "voice_xp_max": 40,
-    "voice_xp_cooldown": 150,
+    "chat_effective_channel": [1255555849032564789],
     "booster_extra_xp_percent": 10,
     "level_up_notification": true,
     "level_role": [
