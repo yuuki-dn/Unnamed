@@ -7,6 +7,7 @@ from modules.chatbot.cog import ChatBot
 from modules.leveling.cog import LevelingCog
 from modules.musicplayer.cog import MusicPlayer
 from modules.wordchain.cog import WordChain
+from modules.ErrorHandle.errorHandle import HandleError
 
 # Setup logging
 setup_logging()
@@ -24,6 +25,7 @@ bot.add_cog(ChatBot(bot))
 bot.add_cog(LevelingCog(bot))
 bot.add_cog(MusicPlayer(bot))
 bot.add_cog(WordChain(bot))
+bot.add_cog(HandleError(bot))
 
 # Start
 bot.run()
