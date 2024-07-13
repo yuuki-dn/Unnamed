@@ -4,3 +4,6 @@ colorama==0.4.6
 marisa-trie==1.2.0 
 aiomysql==0.2.0
 emoji==2.12.1
+google-generativeai
+openai
+requests~=2.32.3
