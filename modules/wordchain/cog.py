@@ -7,6 +7,7 @@ import logging
 from modules.wordchain.dictionary import Dictionary, IllegalWordException, reform_word
 from utils.cache import LRUCache
 from utils.guild_data import GuildData
+from utils.configuration import EPHEMERAL_AUDIT_ACTION, EPHEMERAL_ERROR_ACTION
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -117,9 +118,9 @@ class WordChain(commands.Cog):
     @commands.cooldown(1, 60)
     async def start(self, inter: disnake.ApplicationCommandInteraction):
         if not isinstance(inter.channel, disnake.TextChannel):
-            await inter.response.send_message("❌ Trò chơi chỉ hoạt động trên kênh văn bản bình thường", ephemeral=True)
+            await inter.response.send_message("❌ Trò chơi chỉ hoạt động trên kênh văn bản bình thường", ephemeral=EPHEMERAL_ERROR_ACTION)
             return
-        await inter.response.defer(ephemeral=True)
+        await inter.response.defer(ephemeral=EPHEMERAL_AUDIT_ACTION)
         entity = await self.guild_data.get_guild(inter.guild_id)
         if entity.wordchain_channel_id != 0:
             await inter.edit_original_response(f"⚠️ Trò chơi đã được cấu hình trên máy chủ tại kênh https://discord.com/channels/{inter.guild_id}/{entity.wordchain_channel_id}\n"
@@ -141,9 +142,9 @@ class WordChain(commands.Cog):
     async def stop(self, inter: disnake.ApplicationCommandInteraction):
         if inter.guild is None: return
         if not inter.author.guild_permissions.administrator:
-            await inter.response.send_message("❌ Bạn cần có quyền `Quản trị máy chủ` để sử dụng lệnh này", ephemeral=True)
+            await inter.response.send_message("❌ Bạn cần có quyền `Quản trị máy chủ` để sử dụng lệnh này", ephemeral=EPHEMERAL_ERROR_ACTION)
             return
-        await inter.response.defer(ephemeral=True)
+        await inter.response.defer(ephemeral=EPHEMERAL_AUDIT_ACTION)
         entity = await self.guild_data.get_guild(inter.guild_id)
         channel_id = entity.wordchain_channel_id
         entity.wordchain_channel_id = 0

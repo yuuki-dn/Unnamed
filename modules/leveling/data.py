@@ -24,17 +24,12 @@ class MemberXPData:
         except KeyError:
             entity = None
             try:
-                cursor = await self.database.get_cursor()
-                await cursor.execute("SELECT `xp` FROM `member_xp` WHERE `user_id` = %s", (user_id))
-                result = await cursor.fetchone()
+                result = await self.database.execute_query("SELECT `xp` FROM `member_xp` WHERE `user_id` = %s", (user_id))
                 entity = MemberXPEntity(user_id, 0)
-                if result is None: 
-                    await cursor.execute("INSERT INTO `member_xp` (`user_id`, `xp`) VALUE (%s, %s)", (user_id, 0))
-                    await cursor.close()
-                    await self.database.commit()
+                if result.__len__() == 0: 
+                    await self.database.execute_update("INSERT INTO `member_xp` (`user_id`, `xp`) VALUE (%s, %s)", (user_id, 0))
                 else:
-                    entity.xp = result[0]
-                    await cursor.close()
+                    entity.xp = result[0][0]
                 self.cache.put(user_id, entity)
             except Exception as e:
                 self.logger.error(f"Đã xảy ra lỗi khi lấy dữ liệu điểm XP cho thành viên ID: {user_id}", repr(e))
@@ -48,10 +43,7 @@ class MemberXPData:
         if entity.xp < 0: entity.xp = 0
         entity.last_update_timestamp = get_current_time()
         try:
-            cursor = await self.database.get_cursor()
-            await cursor.execute("UPDATE `member_xp` SET `xp` = %s WHERE `user_id` = %s", (entity.xp, entity.user_id))
-            await cursor.close()
-            await self.database.commit()
+            await self.database.execute_update("UPDATE `member_xp` SET `xp` = %s WHERE `user_id` = %s", (entity.xp, entity.user_id))
         except Exception as e:
             self.logger.error(f"Đã xảy ra lỗi khi cập nhật dữ liệu điểm XP cho thành viên ID: {user_id}", repr(e))
             
@@ -63,10 +55,7 @@ class MemberXPData:
         if entity.xp < 0: entity.xp = 0
         entity.last_update_timestamp = get_current_time()
         try:
-            cursor = await self.database.get_cursor()
-            await cursor.execute("UPDATE `member_xp` SET `xp` = %s WHERE `user_id` = %s", (entity.xp, entity.user_id))
-            await cursor.close()
-            await self.database.commit()
+            await self.database.execute_update("UPDATE `member_xp` SET `xp` = %s WHERE `user_id` = %s", (entity.xp, entity.user_id))
         except Exception as e:
             self.logger.error(f"Đã xảy ra lỗi khi cập nhật dữ liệu điểm XP cho thành viên ID: {user_id}", repr(e))
         

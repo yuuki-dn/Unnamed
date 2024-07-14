@@ -4,6 +4,9 @@ from disnake.ext import commands
 PREFIX = "$"  # Kí hiệu để gọi các lệnh văn bản
 MASTER_GUILD_ID = 1208756727323955250  # ID Server chính
 
+EPHEMERAL_AUDIT_ACTION = False
+EPHEMERAL_ERROR_ACTION = False
+
 INTENTS = disnake.Intents(
     emojis=True,
     guilds=True,

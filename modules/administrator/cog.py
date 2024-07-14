@@ -1,5 +1,5 @@
 from botbase import BotBase
-from utils.configuration import MASTER_GUILD_ID
+from utils.configuration import MASTER_GUILD_ID, EPHEMERAL_AUDIT_ACTION, EPHEMERAL_ERROR_ACTION
 from utils.guild_data import GuildData, ReactionRoleMessageEntity
 
 import disnake
@@ -95,18 +95,18 @@ class AdminCommands(commands.Cog):
         if inter.author.bot: return
         message_id = inter.options["add"].get("message_id", "")
         if not isinstance(message_id, str):
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if not message_id.strip().isdecimal():
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         message_id = int(message_id.strip())
         emoji = inter.options["add"].get("emoji", "")
         parsed_emoji = parse_emoji(emoji)
         if parsed_emoji is None:
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         role = inter.options["add"].get("role", None)
         if not isinstance(role, disnake.Role):
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
-        await inter.response.defer(ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
+        await inter.response.defer(ephemeral=EPHEMERAL_AUDIT_ACTION)
         entity: ReactionRoleMessageEntity = await self.guild_data.get_guild_reaction_role_message(message_id, inter.guild_id)
         entity.map[parsed_emoji] = role.id
         await self.guild_data.update_reaction_role_message(entity)
@@ -143,11 +143,11 @@ class AdminCommands(commands.Cog):
         if inter.author.bot: return
         message_id = inter.options["delete"].get("message_id", "")
         if not isinstance(message_id, str):
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if not message_id.strip().isdecimal():
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         message_id = int(message_id.strip())
-        await inter.response.defer(ephemeral=True)
+        await inter.response.defer(ephemeral=EPHEMERAL_AUDIT_ACTION)
         await self.guild_data.delete_reaction_role_message(message_id, inter.guild_id)
         await inter.edit_original_response(f"✅ Đã xoá tự động cấp vai trò cho tin nhắn có ID: {message_id}")
         
@@ -165,5 +165,5 @@ class AdminCommands(commands.Cog):
     @commands.is_owner()
     async def shutdown(self, inter: disnake.ApplicationCommandInteraction):
         self.logger.warning(f"Lệnh tắt được thực thi bởi @{inter.author.name} (UID: {inter.author.id})")
-        await inter.response.send_message("⚠️ Đang tắt bot", ephemeral=True)
+        await inter.response.send_message("⚠️ Đang tắt bot", ephemeral=EPHEMERAL_AUDIT_ACTION)
         await self.bot.close()
