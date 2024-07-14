@@ -6,6 +6,7 @@ import aiohttp
 from disnake import AppCommandInter, Option, OptionType, OptionChoice, Embed, Color, File
 from disnake.ext import commands
 from random import randint
+from utils.conv import fix_characters
 model_info = {
     "chatGPT": {"name": "ChatGPT"},
     "gemini": {"name": "Gemini Ai"},
@@ -66,11 +67,14 @@ class ChatBot(commands.Cog):
             ])
         ])
     async def aichat(self, ctx: AppCommandInter, content: str = None, model: str = "gemini", private: bool = False):
+
         await ctx.response.defer(ephemeral=private)
         if len(content) > 2000:
             await ctx.edit_original_response(
                 embed=gen_error_embed(message="The question is too long, try to split it up"))
             return
+
+        limitContent = fix_characters(content, 16)
         chatID = randint(0, 9999999)
         response = ""
 
@@ -85,8 +89,8 @@ class ChatBot(commands.Cog):
         elif model == "chatGPT":
             response += await self.get_GPT_response(content)
 
-        if len(response) <= 1850:
-            message = f"> ### Answer for {ctx.author.mention}, question `{content}`:\n\n" + response + f"\n\n-# Powered by {model_info[model]['name']}. Information given might not correct and not been verified"
+        if len(response) <= 1750:
+            message = f"> ### Answer for {ctx.author.mention}, question `{limitContent}`:\n\n" + response + f"\n\n-# Powered by {model_info[model]['name']}. Information given might not correct and not been verified"
             
             await ctx.edit_original_response(message, embed=None)
 

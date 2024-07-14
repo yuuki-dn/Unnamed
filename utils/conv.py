@@ -1,5 +1,27 @@
 from typing import Union
 
+replaces = [
+    ('&quot;', '"'),
+    ('&amp;', '&'),
+    ('(', '\u0028'),
+    (')', '\u0029'),
+    ('[', '【'),
+    (']', '】'),
+    ("  ", " "),
+    ("*", '"'),
+    ("_", ' '),
+    ("{", "\u0028"),
+    ("}", "\u0029"),
+    ("`", "'")
+]
+def fix_characters(text: str, limit: int = 0):
+    for r in replaces:
+        text = text.replace(r[0], r[1])
+
+    if limit:
+        text = f"{text[:limit]}..." if len(text) > limit else text
+
+    return text
 
 def time_format(milliseconds: Union[int, float], use_names: bool = False, language: str = "vi") -> str:
     minutes, seconds = divmod(int(milliseconds / 1000), 60)
