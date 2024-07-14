@@ -87,13 +87,12 @@ class AdminCommands(commands.Cog):
             )
         ]
     )
+    @commands.guild_only()
+    @commands.has_guild_permissions(administrator=True)
+    @commands.bot_has_guild_permissions(administrator=True)
+    @commands.cooldown(3, 10, commands.BucketType.guild)
     async def add_reaction_role_message(self, inter: disnake.ApplicationCommandInteraction):
-        if inter.guild_id is None: return
         if inter.author.bot: return
-        if not inter.author.guild_permissions.administrator:
-            return await inter.response.send_message("❌ Bạn cần có quyền `Quản trị máy chủ` để sử dụng lệnh này", ephemeral=True)
-        if not inter.guild.me.guild_permissions.administrator:
-            return await inter.response.send_message("❌ Bot cần có quyền `Quản trị máy chủ` để thực hiện các chức năng cho lệnh này", ephemeral=True)
         message_id = inter.options["add"].get("message_id", "")
         if not isinstance(message_id, str):
             return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
@@ -137,11 +136,11 @@ class AdminCommands(commands.Cog):
             )
         ]
     )
+    @commands.guild_only()
+    @commands.has_guild_permissions(administrator=True)
+    @commands.cooldown(3, 10, commands.BucketType.guild)
     async def delete_reaction_role_message(self, inter: disnake.ApplicationCommandInteraction):
-        if inter.guild_id is None: return
         if inter.author.bot: return
-        if not inter.author.guild_permissions.administrator:
-            return await inter.response.send_message("❌ Bạn cần có quyền `Quản trị máy chủ` để sử dụng lệnh này", ephemeral=True)
         message_id = inter.options["delete"].get("message_id", "")
         if not isinstance(message_id, str):
             return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
@@ -160,26 +159,11 @@ class AdminCommands(commands.Cog):
     async def system(self, inter: disnake.ApplicationCommandInteraction) -> None: pass
     
     @system.sub_command(
-        name="reload",
-        description="Tải lại tệp JSON cấu hình của bot"
-    )
-    async def reload_config(self, inter: disnake.ApplicationCommandInteraction):
-        allowed = False
-        if inter.author.id == inter.bot.owner_id: allowed = True
-        elif inter.author.id in inter.bot.owner_ids: allowed = True
-        if not allowed: return await inter.response.send_message("❌ Chỉ chủ sở hữu bot mới có quyền sử dụng lệnh này", ephemeral=True)
-        self.logger.warning(f"Lệnh tải lại tệp cấu hình JSON được thực thi bởi @{inter.author.name} (UID: {inter.author.id})")
-        await inter.response.send_message("✅ Tải lại thành công", ephemeral=True)
-    
-    @system.sub_command(
         name="shutdown",
         description="Dừng bot"
     )
+    @commands.is_owner()
     async def shutdown(self, inter: disnake.ApplicationCommandInteraction):
-        allowed = False
-        if inter.author.id == inter.bot.owner_id: allowed = True
-        elif inter.author.id in inter.bot.owner_ids: allowed = True
-        if not allowed: return await inter.response.send_message("❌ Chỉ chủ sở hữu bot mới có quyền sử dụng lệnh này", ephemeral=True)
         self.logger.warning(f"Lệnh tắt được thực thi bởi @{inter.author.name} (UID: {inter.author.id})")
         await inter.response.send_message("⚠️ Đang tắt bot", ephemeral=True)
         await self.bot.close()
