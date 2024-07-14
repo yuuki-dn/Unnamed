@@ -39,6 +39,19 @@ class Database():
             self.logger.error("Kết nối cơ sở dữ liệu thất bại\n" + repr(e))
         
     
+    async def execute_update(self, query: str, *args, **kwargs) -> None:
+        async with await self.connection.cursor() as cursor:
+            await cursor.execute(query, *args, **kwargs)
+            await self.commit()
+   
+            
+    async def execute_query(self, query: str, *args, **kwargs) -> list | None:
+        result = None
+        async with await self.connection.cursor() as cursor:
+            await cursor.execute(query, *args, **kwargs)
+            result = await cursor.fetchall()
+        return result
+    
     
     async def get_cursor(self) -> Cursor:
         return await self.connection.cursor()

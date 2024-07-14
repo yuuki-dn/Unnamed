@@ -1,17 +1,13 @@
 {
-    "chat_xp_min": 15,
-    "chat_xp_max": 40,
-    "chat_xp_cooldown": 45,
-    "chat_effective_channel": [1255555849032564789],
+    "chat_xp_min": 80,
+    "chat_xp_max": 110,
+    "chat_xp_cooldown": 15,
+    "chat_effective_channel": [1255555849032564789, 1234059884043960401],
     "booster_extra_xp_percent": 10,
     "level_up_notification": true,
     "level_role": [
-        { "level": 5, "role_id": 101 },
-        { "level": 10, "role_id": 102 },
-        { "level": 20, "role_id": 103 },
-        { "level": 40, "role_id": 104 },
-        { "level": 60, "role_id": 105 },
-        { "level": 80, "role_id": 106 },
-        { "level": 100, "role_id": 107 }
+        { "level": 5, "role_id": 1259949809008382023 },
+        { "level": 10, "role_id": 1259949543449952406 },
+        { "level": 20, "role_id": 1259949353259241502 }
     ]
 }

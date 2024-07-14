@@ -1,7 +1,8 @@
-from modules.leveling.data import MemberXPData, get_current_time
+from modules.leveling.data import MemberXPData, MemberXPEntity, get_current_time
 
 from botbase import BotBase
-from utils.configuration import MASTER_GUILD_ID
+from utils.configuration import MASTER_GUILD_ID, EPHEMERAL_AUDIT_ACTION, EPHEMERAL_ERROR_ACTION
+from typing import Union
 
 import disnake
 from disnake.ext import commands
@@ -10,6 +11,8 @@ import json
 import logging
 from bisect import bisect_right
 from random import randint
+
+MessageableChannel = Union[disnake.VoiceChannel, disnake.StageChannel, disnake.TextChannel, disnake.CategoryChannel, disnake.ForumChannel]
 
 LEVEL_LIMIT = 1000
 LEVEL_XP_LIMIT = [100]
@@ -35,7 +38,15 @@ class LevelingCog(commands.Cog):
         
         self.__load_config__()
         
-        
+    
+    def __get_new_role__(self, previous_level: int, new_level: int) -> list[int]:
+        result = []
+        if not previous_level < new_level: return result
+        for key in self.level_role:
+            if key > previous_level and key <= new_level: result.append(self.level_role[key])
+        return result
+            
+            
     def __load_config__(self):
         with open("modules/leveling/config.json") as f:
             configuration: dict = json.load(f)
@@ -51,7 +62,26 @@ class LevelingCog(commands.Cog):
                 self.level_role[level_role_data["level"]] = level_role_data["role_id"]
 
             self.logger.info("Đã tải lại tệp cấu hình JSON")
-
+            
+    
+    async def __process__(self, channel: MessageableChannel, member: disnake.Member, entity: MemberXPEntity, amount: int):
+        current_level = get_current_level(entity.xp)
+        new_level = get_current_level(entity.xp + amount)
+        await self.data.add_xp(entity.user_id, amount)
+        if self.level_up_notification and current_level < new_level:
+            new_role = self.__get_new_role__(current_level, new_level)
+            response = f"✨ <@{entity.user_id}> đã lên level {new_level} "
+            if new_role.__len__() > 0:
+                response += "và nhận được vai trò "
+                for role_id in new_role: 
+                    try:
+                        await self.bot.http.add_role(channel.guild.id, entity.user_id, role_id)
+                        response += f"<@&{role_id}> "
+                    except Exception as e:
+                        self.logger.error(f"Đã có lỗi xảy ra khi thêm vai trò {role_id} cho thành viên ID: {entity.user_id}", repr(e))
+            await channel.send(response, allowed_mentions=disnake.AllowedMentions(everyone=False, users=True, roles=False))
+                    
+                    
     
     @commands.Cog.listener()
     async def on_message(self, message: disnake.Message):
@@ -65,13 +95,10 @@ class LevelingCog(commands.Cog):
         entity = await self.data.get_member_data(message.author.id)
         if entity is None: return
         if entity.last_update_timestamp + self.chat_xp_cooldown > get_current_time(): return
-        current_level = get_current_level(entity.xp)
         is_booster = (message.author.premium_since is not None)
         amount = int(randint(self.chat_xp_min, self.chat_xp_max) * (100 + (self.booster_extra_xp_percent if is_booster else 0)) / 100)
-        new_level = get_current_level(entity.xp + amount)
-        await self.data.add_xp(message.author.id, amount)
-        if self.level_up_notification and current_level < new_level:
-            await message.channel.send(f"✨ {message.author.mention} đã lên level {new_level}")
+        await self.__process__(message.channel, message.author, entity, amount)
+        
             
         
     @commands.slash_command(
@@ -93,11 +120,11 @@ class LevelingCog(commands.Cog):
         if inter.guild_id != MASTER_GUILD_ID: return
         member = inter.options.get("member", inter.author)
         if not isinstance(member, disnake.Member):
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if member.bot:
-            return await inter.response.send_message("❌ Không được chỉ định thành viên là bot", ephemeral=True)
+            return await inter.response.send_message("❌ Không được chỉ định thành viên là bot", ephemeral=EPHEMERAL_ERROR_ACTION)
         entity = await self.data.get_member_data(member.id)
-        if entity is None: return await inter.response.send_message("❌ Đã có lỗi xảy ra khi truy vấn thông tin người dùng", ephemeral=True)
+        if entity is None: return await inter.response.send_message("❌ Đã có lỗi xảy ra khi truy vấn thông tin người dùng", ephemeral=EPHEMERAL_ERROR_ACTION)
         current_level = get_current_level(entity.xp)
         is_booster = (member.premium_since is not None)
         embed = disnake.Embed(
@@ -150,25 +177,21 @@ XP: {entity.xp} / {'UNLIMITED' if current_level == LEVEL_XP_LIMIT.__len__() else
         if inter.guild_id != MASTER_GUILD_ID: return
         member = inter.options["add"].get("member", None)
         if not isinstance(member, disnake.Member):
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if member.bot:
-            return await inter.response.send_message("❌ Không được chỉ định thành viên là bot", ephemeral=True)
+            return await inter.response.send_message("❌ Không được chỉ định thành viên là bot", ephemeral=EPHEMERAL_ERROR_ACTION)
         amount = inter.options["add"].get("amount", None)
         if not isinstance(amount, int):
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if amount < 1:
-            return await inter.response.send_message("❌ Giá trị không được phép nhỏ hơn 1", ephemeral=True)
+            return await inter.response.send_message("❌ Giá trị không được phép nhỏ hơn 1", ephemeral=EPHEMERAL_ERROR_ACTION)
         entity = await self.data.get_member_data(member.id)
         if entity is None: 
-            return await inter.response.send_message(f"❌ Đã xảy ra lỗi khi lấy thông tin của {member.mention}", ephemeral=True)
-        current_level = get_current_level(entity.xp)
-        new_level = get_current_level(entity.xp + amount)
-        await self.data.add_xp(member.id, amount)
-        await inter.response.send_message(f"✅ Đã thêm `{amount} xp` cho thành viên {member.mention}", ephemeral=True)
-        if self.level_up_notification and current_level < new_level:
-            await inter.channel.send(f"✨ {member.mention} đã lên level {new_level}")
-        
-    
+            return await inter.response.send_message(f"❌ Đã xảy ra lỗi khi lấy thông tin của {member.mention}", ephemeral=EPHEMERAL_ERROR_ACTION)
+        await inter.response.defer(ephemeral=EPHEMERAL_AUDIT_ACTION)
+        await self.__process__(inter.channel, inter.author, entity, amount)
+        await inter.edit_original_response(f"✅ Đã thêm `{amount} xp` cho thành viên {member.mention}")
+       
     
     @xp.sub_command(
         name="remove",
@@ -194,19 +217,20 @@ XP: {entity.xp} / {'UNLIMITED' if current_level == LEVEL_XP_LIMIT.__len__() else
         if inter.guild_id != MASTER_GUILD_ID: return
         member = inter.options["remove"].get("member", None)
         if not isinstance(member, disnake.Member):
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if member.bot:
-            return await inter.response.send_message("❌ Không được chỉ định thành viên là bot", ephemeral=True)
+            return await inter.response.send_message("❌ Không được chỉ định thành viên là bot", ephemeral=EPHEMERAL_ERROR_ACTION)
         amount = inter.options["remove"].get("amount", None)
         if not isinstance(amount, int):
-            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=True)
+            return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if amount < 1:
-            return await inter.response.send_message("❌ Giá trị không được phép nhỏ hơn 1", ephemeral=True)
+            return await inter.response.send_message("❌ Giá trị không được phép nhỏ hơn 1", ephemeral=EPHEMERAL_ERROR_ACTION)
         entity = await self.data.get_member_data(member.id)
         if entity is None: 
-            return await inter.response.send_message(f"❌ Đã xảy ra lỗi khi lấy thông tin của {member.mention}", ephemeral=True)
-        await self.data.add_xp(member.id, amount)
-        await inter.response.send_message(f"✅ Đã trừ `{amount} xp` của thành viên {member.mention}", ephemeral=True)
+            return await inter.response.send_message(f"❌ Đã xảy ra lỗi khi lấy thông tin của {member.mention}", ephemeral=EPHEMERAL_ERROR_ACTION)
+        await inter.response.defer(ephemeral=EPHEMERAL_AUDIT_ACTION)
+        await self.data.remove_xp(member.id, amount)
+        await inter.edit_original_response(f"✅ Đã trừ `{amount} xp` của thành viên {member.mention}")
         
     
     @xp.sub_command(
@@ -215,6 +239,7 @@ XP: {entity.xp} / {'UNLIMITED' if current_level == LEVEL_XP_LIMIT.__len__() else
     )
     @commands.is_owner()
     async def reload_config(self, inter: disnake.ApplicationCommandInteraction) -> None:
+        self.__load_config__()
         self.logger.warning(f"Lệnh tải lại tệp cấu hình JSON được thực thi bởi @{inter.author.name} (UID: {inter.author.id})")
-        await inter.response.send_message("✅ Tải lại thành công", ephemeral=True)
+        await inter.response.send_message("✅ Tải lại thành công", ephemeral=EPHEMERAL_AUDIT_ACTION)
         
