@@ -2,7 +2,7 @@
 from botbase import BotBase
 import google.generativeai as Gemini
 import os
-import requests
+import aiohttp
 from disnake import AppCommandInter, Option, OptionType, OptionChoice, Embed, Color, File
 from disnake.ext import commands
 from random import randint
@@ -10,12 +10,6 @@ model_info = {
     "chatGPT": {"name": "ChatGPT"},
     "gemini": {"name": "Gemini Ai"},
 }
-
-
-
-
-
-
 
 
 def gen_error_embed(message: str):
@@ -44,32 +38,20 @@ class ChatBot(commands.Cog):
         return chat.send_message(content).text
 
     async def get_GPT_response(self, user_content: str):
-        history = []
-        if user_content:
-            history.append(user_content)
-        base_url = "https://api.openai.com/v1/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.OpenAI_APIKEY}"
-        }
-        data = {
-            "model": "gpt-3.5-turbo",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": f"History: {history}"
-                },
-                {
-                    "role": "user",
-                    "content": f"{user_content}"
-                }
-            ]
-        }
-        response = requests.post(url=base_url, headers=headers, json=data)
-        if response.status_code == 200:
-            return response.json()['choices'][0]['message']['content']
-        else:
-            return f"{response.status_code}: {response.text}"
+        async with aiohttp.ClientSession() as session:
+            history = []
+            if user_content:
+                history.append(user_content)
+            base_url = "http://api.chisadin.site:81/api/chatGPT"
+
+            data = {
+                "chat_content": user_content
+            }
+            response = await session.post(url=base_url, data=data)
+            if response.status == 200:
+                return await response.text()
+            else:
+                return f"{response.status}: {await response.text()}"
 
     @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.slash_command(name="chat", description="AI chatbot", options = [
