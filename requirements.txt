@@ -7,3 +7,4 @@ emoji==2.12.1
 google-generativeai
 openai
 requests~=2.32.3
+aiohttp==3.9.5
