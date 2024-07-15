@@ -36,7 +36,8 @@ class ChatBot(commands.Cog):
     async def get_gemini_response(self, content: str):
         model = Gemini.GenerativeModel("gemini-pro")
         chat = model.start_chat(history=[])
-        return chat.send_message(content).text
+        responseContent = await chat.send_message_async(content)
+        return responseContent.text
 
     async def get_GPT_response(self, user_content: str):
         async with aiohttp.ClientSession() as session:
@@ -49,10 +50,16 @@ class ChatBot(commands.Cog):
                 "chat_content": user_content
             }
             response = await session.post(url=base_url, data=data)
+
+            prettyResponse = await response.text()
+
             if response.status == 200:
-                return await response.text()
+                return prettyResponse
             else:
-                return f"{response.status}: {await response.text()}"
+                print(f"Đã xảy ra sự cố: {response.status}, {prettyResponse}")
+                FIXresponse = await self.get_gemini_response(user_content)
+                return FIXresponse
+
 
     @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.slash_command(name="chat", description="AI chatbot", options = [
@@ -79,7 +86,7 @@ class ChatBot(commands.Cog):
         response = ""
 
         embed = Embed(
-                title="📝 Processing content, please wait",
+                title="📝 Processing content, please wait ⌛",
                 color=Color.yellow()
             )
         await ctx.edit_original_response(embed=embed)
