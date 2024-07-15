@@ -34,7 +34,7 @@ class ChatBot(commands.Cog):
         self.OpenAI_APIKEY = self.bot.env.get("CHATGPT_KEY")
 
     async def get_gemini_response(self, content: str):
-        model = Gemini.GenerativeModel("gemini-pro")
+        model = Gemini.GenerativeModel("gemini-1.5-flash")
         chat = model.start_chat(history=[])
         responseContent = await chat.send_message_async(content)
         return responseContent.text
