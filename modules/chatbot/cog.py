@@ -64,7 +64,7 @@ class ChatBot(commands.Cog):
     @commands.cooldown(1, 30, commands.BucketType.user)
     @commands.slash_command(name="chat", description="AI chatbot", options = [
             Option(name="content", description="User Content", type=OptionType.string, required=True),
-            Option(name="model", description="Model chatbot", type=OptionType.string, required=True, choices=[
+            Option(name="model", description="Model chatbot", type=OptionType.string, required=False, choices=[
                 OptionChoice(name="GPT", value="chatGPT"),
                 OptionChoice(name="Gemini", value="gemini")
             ]),
