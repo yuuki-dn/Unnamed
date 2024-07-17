@@ -1,6 +1,5 @@
 import disnake
 from disnake.ext import commands
-from aiomysql import OperationalError
 from utils.conv import *
 import traceback
 from typing import Optional, Union
@@ -27,9 +26,6 @@ def parse_error(
 
     if isinstance(error, commands.NotOwner):
         error_txt = "**Chỉ nhà phát triển của tôi mới có thể sử dụng lệnh này**"
-
-    if isinstance(error, OperationalError):
-        error_txt = "Đã có sự cố về cơ sở dữ liệu của tôi"
 
     if isinstance(error, commands.BotMissingPermissions):
         error_txt = "Tôi không có các quyền sau để thực thi lệnh này: ```\n{}```" \

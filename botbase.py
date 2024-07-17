@@ -33,7 +33,7 @@ class BotBase(commands.AutoShardedBot):
         self.logger.info(f"Khởi tạo thành công! Đã đăng nhập với tên {self.user.name} (UID: {self.user.id})")
         
     async def on_close(self):
-        self.database.connection.close()
+        await self.database.connection.close()
 
     def run(self) -> None:
         # Đăng nhập
