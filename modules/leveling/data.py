@@ -3,59 +3,56 @@ from utils.cache import LRUCache, get_current_time
 
 import logging
 
-class MemberXPEntity:
-    __slots__ = "user_id", "xp", "last_update_timestamp"
-    
-    def __init__(self, user_id: int, xp: int):
-        self.user_id: int = user_id
-        self.xp: int = xp
-        self.last_update_timestamp: int = 0
-        
-
 class MemberXPData:
     def __init__(self, database: Database):
         self.logger = logging.getLogger(__name__)
         self.database = database
-        self.cache: LRUCache = LRUCache(1000, 600)
-        
-    async def get_member_data(self, user_id: int) -> MemberXPEntity | None:
-        try: 
-            return self.cache.get(user_id)
-        except KeyError:
-            entity = None
-            try:
-                result = await self.database.execute_query("SELECT `xp` FROM `member_xp` WHERE `user_id` = %s", (user_id))
-                entity = MemberXPEntity(user_id, 0)
-                if result.__len__() == 0: 
-                    await self.database.execute_update("INSERT INTO `member_xp` (`user_id`, `xp`) VALUE (%s, %s)", (user_id, 0))
-                else:
-                    entity.xp = result[0][0]
-                self.cache.put(user_id, entity)
-            except Exception as e:
-                self.logger.error(f"Đã xảy ra lỗi khi lấy dữ liệu điểm XP cho thành viên ID: {user_id}", repr(e))
-            finally: return entity
-                
-                
-    async def add_xp(self, user_id: int, amount: int):
-        entity = await self.get_member_data(user_id)
-        if entity is None: return
-        entity.xp += amount
-        if entity.xp < 0: entity.xp = 0
-        entity.last_update_timestamp = get_current_time()
-        try:
-            await self.database.execute_update("UPDATE `member_xp` SET `xp` = %s WHERE `user_id` = %s", (entity.xp, entity.user_id))
-        except Exception as e:
-            self.logger.error(f"Đã xảy ra lỗi khi cập nhật dữ liệu điểm XP cho thành viên ID: {user_id}", repr(e))
-            
+        self.cooldown_cache = LRUCache(1000, 300)
+
+
+    def check_cooldown(self, member_id: int, cooldown: int) -> bool:
+        last_activity = 0
+        try: last_activity = self.cooldown_cache.get(member_id)
+        except KeyError: pass
+        current_time = get_current_time()
+        passed = (last_activity + cooldown) < current_time
+        if passed:
+            self.cooldown_cache.put(member_id, current_time)
+            self.logger.debug(f"Reset XP cooldown for member {member_id}")
+        return passed
     
-    async def remove_xp(self, user_id: int, amount: int):
-        entity = await self.get_member_data(user_id)
-        if entity is None: return
-        entity.xp -= amount
-        if entity.xp < 0: entity.xp = 0
-        entity.last_update_timestamp = get_current_time()
-        try:
-            await self.database.execute_update("UPDATE `member_xp` SET `xp` = %s WHERE `user_id` = %s", (entity.xp, entity.user_id))
-        except Exception as e:
-            self.logger.error(f"Đã xảy ra lỗi khi cập nhật dữ liệu điểm XP cho thành viên ID: {user_id}", repr(e))
+    
+    async def get_member_xp(self, member_id: int) -> int:
+        "Return 0 by default"
+        sql = "SELECT xp FROM member_xp WHERE user_id = %s LIMIT 1;"
+        result = await self.database.execute_query(sql, (member_id))
+        if result.__len__() == 0:
+            self.logger.debug(f"Found no XP data of member {member_id}. Fallback to 0")
+            return 0
+        else:
+            self.logger.debug(f"Member {member_id} has {result[0][0]} xp")
+            return result[0][0]
         
+        
+    async def increase_member_xp(self, member_id: int, amount: int) -> None:
+        sql = """
+            INSERT INTO member_xp (user_id, xp) 
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE
+            xp = xp + VALUES(xp);
+        """
+        await self.database.execute_update(sql, (member_id, amount))
+        self.logger.debug(f"Added {amount} xp to member {member_id}")
+        
+    
+    async def reduce_member_xp(self, member_id: int, amount: int) -> None:
+        previous = await self.get_member_xp(member_id)
+        new_xp = previous - amount
+        if new_xp < 0: new_xp = 0
+        sql = """
+            INSERT INTO member_xp (user_id, xp) 
+            VALUES (%s, %s)
+            ON DUPLICATE KEY UPDATE
+            xp = VALUES(xp);
+        """
+        await self.database.execute_update(sql, (member_id, new_xp))

@@ -46,8 +46,10 @@ class BotBase(commands.AutoShardedBot):
                 self.logger.info("Đang thực hiện các tác vụ trước khi dừng bot")
                 if not self.is_closed(): await self.close()
                 await self.database.close()
+                await self.loop.shutdown_asyncgens()
         
-        def stop_loop_on_completion(f) -> None: self.loop.stop()
+        def stop_loop_on_completion(f) -> None: 
+            self.loop.stop()
 
         future = asyncio.ensure_future(runner(), loop=self.loop)
         future.add_done_callback(stop_loop_on_completion)

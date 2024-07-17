@@ -53,6 +53,7 @@ class LRUCache:
         self.tail_key = key
 
     def get(self, key: object) -> object | None:
+        "Remember to handle KeyError"
         if key not in self.cache:
             raise KeyError(f"Key {key} not found")
         node = self.cache[key]

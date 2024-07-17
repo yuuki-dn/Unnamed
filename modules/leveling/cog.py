@@ -1,4 +1,4 @@
-from modules.leveling.data import MemberXPData, MemberXPEntity, get_current_time
+from modules.leveling.data import MemberXPData
 
 from botbase import BotBase
 from utils.configuration import MASTER_GUILD_ID, EPHEMERAL_AUDIT_ACTION, EPHEMERAL_ERROR_ACTION
@@ -64,21 +64,22 @@ class LevelingCog(commands.Cog):
             self.logger.info("Đã tải lại tệp cấu hình JSON")
             
     
-    async def __process__(self, channel: MessageableChannel, member: disnake.Member, entity: MemberXPEntity, amount: int):
-        current_level = get_current_level(entity.xp)
-        new_level = get_current_level(entity.xp + amount)
-        await self.data.add_xp(entity.user_id, amount)
-        if self.level_up_notification and current_level < new_level:
-            new_role = self.__get_new_role__(current_level, new_level)
-            response = f"✨ <@{entity.user_id}> đã lên level {new_level} "
+    async def __process__(self, channel: MessageableChannel, member: disnake.Member, amount: int):
+        await self.data.increase_member_xp(member.id, amount)
+        new_xp = await self.data.get_member_xp(member.id)
+        new_level = get_current_level(new_xp)
+        previous_level = get_current_level(new_xp - amount)
+        if self.level_up_notification and previous_level < new_level:
+            new_role = self.__get_new_role__(previous_level, new_level)
+            response = f"✨ <@{member.id}> đã lên level {new_level} "
             if new_role.__len__() > 0:
                 response += "và nhận được vai trò "
                 for role_id in new_role: 
                     try:
-                        await self.bot.http.add_role(channel.guild.id, entity.user_id, role_id)
+                        await self.bot.http.add_role(channel.guild.id, member.id, role_id)
                         response += f"<@&{role_id}> "
                     except Exception as e:
-                        self.logger.error(f"Đã có lỗi xảy ra khi thêm vai trò {role_id} cho thành viên ID: {entity.user_id}", repr(e))
+                        self.logger.error(f"Đã có lỗi xảy ra khi thêm vai trò {role_id} cho thành viên ID: {member.id}", repr(e))
             await channel.send(response, allowed_mentions=disnake.AllowedMentions(everyone=False, users=True, roles=False))
                     
                     
@@ -94,7 +95,7 @@ class LevelingCog(commands.Cog):
         if message.channel.id not in self.chat_effective_channel: return
         entity = await self.data.get_member_data(message.author.id)
         if entity is None: return
-        if entity.last_update_timestamp + self.chat_xp_cooldown > get_current_time(): return
+        if not self.data.check_cooldown(message.author.id): return
         is_booster = (message.author.premium_since is not None)
         amount = int(randint(self.chat_xp_min, self.chat_xp_max) * (100 + (self.booster_extra_xp_percent if is_booster else 0)) / 100)
         await self.__process__(message.channel, message.author, entity, amount)
@@ -123,9 +124,8 @@ class LevelingCog(commands.Cog):
             return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if member.bot:
             return await inter.response.send_message("❌ Không được chỉ định thành viên là bot", ephemeral=EPHEMERAL_ERROR_ACTION)
-        entity = await self.data.get_member_data(member.id)
-        if entity is None: return await inter.response.send_message("❌ Đã có lỗi xảy ra khi truy vấn thông tin người dùng", ephemeral=EPHEMERAL_ERROR_ACTION)
-        current_level = get_current_level(entity.xp)
+        xp = await self.data.get_member_xp(member.id)
+        current_level = get_current_level(xp)
         is_booster = (member.premium_since is not None)
         embed = disnake.Embed(
             title=member.display_name,
@@ -135,7 +135,7 @@ class LevelingCog(commands.Cog):
         embed.description = f"""
 ```ansi
 Level: {current_level}
-XP: {entity.xp} / {'UNLIMITED' if current_level == LEVEL_XP_LIMIT.__len__() else LEVEL_XP_LIMIT[current_level]}
+XP: {xp} / {'UNLIMITED' if current_level == LEVEL_XP_LIMIT.__len__() else LEVEL_XP_LIMIT[current_level]}
 {f"Booster: +{self.booster_extra_xp_percent}% lượng XP nhận được" if is_booster else ""}
 ```
         """
@@ -185,11 +185,8 @@ XP: {entity.xp} / {'UNLIMITED' if current_level == LEVEL_XP_LIMIT.__len__() else
             return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if amount < 1:
             return await inter.response.send_message("❌ Giá trị không được phép nhỏ hơn 1", ephemeral=EPHEMERAL_ERROR_ACTION)
-        entity = await self.data.get_member_data(member.id)
-        if entity is None: 
-            return await inter.response.send_message(f"❌ Đã xảy ra lỗi khi lấy thông tin của {member.mention}", ephemeral=EPHEMERAL_ERROR_ACTION)
         await inter.response.defer(ephemeral=EPHEMERAL_AUDIT_ACTION)
-        await self.__process__(inter.channel, inter.author, entity, amount)
+        await self.__process__(inter.channel, inter.author, amount)
         await inter.edit_original_response(f"✅ Đã thêm `{amount} xp` cho thành viên {member.mention}")
        
     
@@ -225,11 +222,8 @@ XP: {entity.xp} / {'UNLIMITED' if current_level == LEVEL_XP_LIMIT.__len__() else
             return await inter.response.send_message("❌ Tham số nhập vào không hợp lệ", ephemeral=EPHEMERAL_ERROR_ACTION)
         if amount < 1:
             return await inter.response.send_message("❌ Giá trị không được phép nhỏ hơn 1", ephemeral=EPHEMERAL_ERROR_ACTION)
-        entity = await self.data.get_member_data(member.id)
-        if entity is None: 
-            return await inter.response.send_message(f"❌ Đã xảy ra lỗi khi lấy thông tin của {member.mention}", ephemeral=EPHEMERAL_ERROR_ACTION)
         await inter.response.defer(ephemeral=EPHEMERAL_AUDIT_ACTION)
-        await self.data.remove_xp(member.id, amount)
+        await self.data.reduce_member_xp(member.id, amount)
         await inter.edit_original_response(f"✅ Đã trừ `{amount} xp` của thành viên {member.mention}")
         
     

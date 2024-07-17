@@ -2,15 +2,15 @@ import logging
 import asyncio
 from os import _Environ
 
-import aiomysql
-from aiomysql import Connection, Cursor
+from mysql.connector.aio import MySQLConnection
 
 class Database():
-    connection: Connection = None
+    connection: MySQLConnection = None
     
     
     def __init__(self, environ: _Environ, loop: asyncio.AbstractEventLoop):
         self.logger = logging.getLogger(__name__)
+        self.loop = loop
         
         host = environ["MYSQL_HOST"]
         port = int(environ["MYSQL_PORT"])
@@ -20,23 +20,31 @@ class Database():
         
         for value in (host, username, password, schema):
             if value is None: raise EnvironmentError("Thông tin kết nối cơ sở dữ liệu chưa được cấu hình trong biến môi trường")
+            
+        self.connection = MySQLConnection(host=host, port=port, user=username, password=password, database=schema)
         
-        asyncio.run_coroutine_threadsafe(self.connect(host, port, username, password, schema), loop=loop)
+        future = asyncio.ensure_future(self.connect(), loop=loop)
+        future.add_done_callback(self.connect_callback)
+        
             
     
-    async def connect(self, host: str, port: int, username: str, password: str, schema: str) -> None:
+    async def connect(self) -> None:
         self.logger.info("Đang kết nối tới cơ sở dữ liệu MySQL")
+        
+        async def wrapper(connection: MySQLConnection):
+            await connection.connect()
+            while not connection.is_connected(): await asyncio.sleep(1)
+            
+        await asyncio.wait_for(wrapper(self.connection), 10)
+        
+        
+    def connect_callback(self, future):
         try:
-            self.connection = await aiomysql.connect(
-                host=host,
-                port=port,
-                user=username,
-                password=password,
-                db=schema
-            )
-            self.logger.info("Kết nối cơ sở dữ liệu thành công")
+            result = future.result()
+            self.logger.info("Kết nối tới cơ sở dữ liệu thành công")
         except Exception as e:
-            self.logger.error("Kết nối cơ sở dữ liệu thất bại\n" + repr(e))
+            self.logger.error("Kết nối tới cơ sở dữ liệu thất bại", repr(e))
+            
         
     
     async def execute_update(self, query: str, *args, **kwargs) -> None:
@@ -53,11 +61,9 @@ class Database():
         return result
     
     
-    async def get_cursor(self) -> Cursor:
-        return await self.connection.cursor()
-    
     async def commit(self) -> None:
         await self.connection.commit()
-    
+        
+        
     async def close(self) -> None:
         self.connection.close()
