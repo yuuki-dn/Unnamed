@@ -8,9 +8,6 @@ from mafic import Player, Track, Playlist, PlayerNotConnected, TrackEndEvent
 from utils.conv import time_format
 import disnake
 from disnake.ext import commands
-from collections import deque
-
-
 
 
 class MusicClient(Player[BotBase]):
@@ -22,10 +19,7 @@ class MusicClient(Player[BotBase]):
 class MusicPlayer(commands.Cog):
     def __init__(self, bot: BotBase):
         self.bot: BotBase = bot
-        self.is_playing = False
-        self.is_pausing = False
-        self.volume = 100
-        self.vc = None
+
 
     async def play_next(self, ctx):
         player: MusicClient = ctx.author.guild.voice_client
@@ -39,10 +33,18 @@ class MusicPlayer(commands.Cog):
         
 
 
-    @commands.slash_command(name="play", description="Phát một bản nhạc trên kênh thoại", options=[disnake.Option(name="search",
-                                                                                                                  description="Tìm kiếm bài hát qua tên hoặc url",
-                                                                                                                  required=True,
-                                                                                                                  type=disnake.OptionType.string)])
+    @commands.slash_command(
+        name="play",
+        description="Phát một bản nhạc trên kênh thoại",
+        options=[
+            disnake.Option(
+                name="search",
+                description="Tìm kiếm bài hát qua tên hoặc url",
+                required=True,
+                type=disnake.OptionType.string
+            )
+        ]
+    )
     async def play(self, inter: disnake.ApplicationCommandInteraction, search: str):
         await inter.response.defer()
 
@@ -58,7 +60,7 @@ class MusicPlayer(commands.Cog):
                     await inter.edit_original_response("Nya! 💢, I dont have perm to connect to your channel")
                     return
 
-        channel = inter.author.voice.channel
+        channel: disnake.VoiceChannel = inter.author.voice.channel
 
         try:
             vc: MusicClient = await channel.connect(cls=MusicClient)
