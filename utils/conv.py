@@ -23,7 +23,7 @@ def fix_characters(text: str, limit: int = 0):
 
     return text
 
-def time_format(milliseconds: Union[int, float], use_names: bool = False, language: str = "vi") -> str:
+def time_format(milliseconds: Union[int, float], use_names: bool = False) -> str:
     minutes, seconds = divmod(int(milliseconds / 1000), 60)
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
