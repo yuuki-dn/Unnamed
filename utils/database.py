@@ -61,4 +61,4 @@ class Database:
         return await self.connection.cursor()
 
     async def close(self) -> None:
-        await self.connection.close()
+        self.connection.close()

@@ -12,19 +12,19 @@ from utils.configuration import EPHEMERAL_AUDIT_ACTION, EPHEMERAL_ERROR_ACTION
 logger: logging.Logger = logging.getLogger(__name__)
 
 class ChainNotMatchException(Exception):
-    def __init__(self, *args, **kwargs):
-        return super().__init__("Từ nhập vào không khớp với chuỗi từ hiện tại", *args, **kwargs)
+    def __init__(self, *args):
+        super().__init__("Từ nhập vào không khớp với chuỗi từ hiện tại", *args)
     
 
 class  CurrentIsLastPlayer(Exception):
-    def __init__(self, *args, **kwargs):
-        return super().__init__("Người chơi hiện tại vừa chơi lượt trước đó", *args, **kwargs)
+    def __init__(self, *args):
+        super().__init__("Người chơi hiện tại vừa chơi lượt trước đó", *args)
 
 
 class DuplicateWordError(Exception):
-    def __init__(self, *args, word: str, previous_message_url = None, **kwargs):
+    def __init__(self, *args, word: str, previous_message_url = None):
         self.previous_message_url = previous_message_url
-        return super().__init__(f"Từ {word} đã được sử dụng trước đó.", *args, **kwargs)
+        super().__init__(f"Từ {word} đã được sử dụng trước đó.", *args)
         
     
 class GuildChain(LRUCache):
@@ -88,7 +88,7 @@ class WordChain(commands.Cog):
         try:
             if msg_split.__len__() != 1 or msg_split[0].__len__() < 3 or (not msg_split[0].isalpha()): raise IllegalWordException()
             if not self.dictionary.check(msg_split[0]): raise IllegalWordException()
-            chain.add_word(msg_split[0], message.jump_url)
+            chain.add_word(msg_split[0], message.jump_url, message.author.id)
             await message.add_reaction("✅")
         except DuplicateWordError as err:
             await message.reply(f"⚠️ Từ này đã được sử dụng {err.previous_message_url}", fail_if_not_exists=False, delete_after=10)
