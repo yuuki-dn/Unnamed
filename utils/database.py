@@ -41,7 +41,7 @@ class Database:
     def connect_callback(self, future):
         try:
             future.result()
-            self.logger.info("Kết nối tới cơ sở dữ liệu thành côhellong")
+            self.logger.info("Kết nối tới cơ sở dữ liệu thành công")
         except Exception as e:
             self.logger.error("Kết nối tới cơ sở dữ liệu thất bại", repr(e))
 
