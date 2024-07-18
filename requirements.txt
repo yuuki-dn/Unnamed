@@ -1,4 +1,5 @@
 disnake==2.9.2
+disnake[voice]
 python-dotenv==1.0.1
 colorama==0.4.6
 marisa-trie==1.2.0 

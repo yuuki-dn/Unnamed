@@ -1,3 +1,5 @@
+import json
+
 import disnake
 from disnake.ext import commands
 
@@ -6,9 +8,21 @@ from dotenv import load_dotenv
 import logging
 import asyncio
 
+from mafic import NodePool
+
 from utils.configuration import PREFIX, INTENTS, COMMAND_SYNC_FLAGS
 from utils.database import Database
 from utils.guild_data import GuildData
+
+with open("modules/musicplayer/node.json", 'r') as nodes:
+    readNode = json.load(nodes)
+
+
+label = readNode["label"]
+host = readNode["host"]
+port =  readNode["port"]
+password = readNode["password"]
+secure =  readNode["secure"]
 
 class BotBase(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
@@ -19,6 +33,8 @@ class BotBase(commands.AutoShardedBot):
         self.boot_time = disnake.utils.utcnow()
         self.database = Database(self.env, self.loop)
         self.guild_data = GuildData(self.database)
+        self.pool = NodePool(self)
+        self.loop.create_task(self.loadNode())
         
         # Khởi tạo
         super().__init__(
@@ -31,6 +47,10 @@ class BotBase(commands.AutoShardedBot):
     # Event
     async def on_ready(self):
         self.logger.info(f"Khởi tạo thành công! Đã đăng nhập với tên {self.user.name} (UID: {self.user.id})")
+
+
+    async def loadNode(self):
+        await self.pool.create_node(host=host, port=port, password=password, label=label)
         
     async def on_close(self):
         await self.database.connection.close()
