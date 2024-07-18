@@ -8,3 +8,6 @@
 .env
 **/*.pyc
 **/*.log
+
+lavalinksessionkey.ini
+modules/musicplayer/node.json
