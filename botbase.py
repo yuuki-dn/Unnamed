@@ -8,21 +8,30 @@ from dotenv import load_dotenv
 import logging
 import asyncio
 
-from mafic import NodePool
+from mafic import NodePool, Node
 
 from utils.configuration import PREFIX, INTENTS, COMMAND_SYNC_FLAGS
 from utils.database import Database
 from utils.guild_data import GuildData
+from typing import TypedDict
+    
+class LavalinkInfo(TypedDict):
+        host: str
+        port: int
+        password: str
+        label: str
+        secure: bool
+
 
 with open("modules/musicplayer/node.json", 'r') as nodes:
-    readNode = json.load(nodes)
-
-
-label = readNode["label"]
-host = readNode["host"]
-port =  readNode["port"]
-password = readNode["password"]
-secure =  readNode["secure"]
+    data: list[LavalinkInfo] = json.loads(nodes.read())
+    
+try:
+    with open('lavalinksessionkey.ini', 'r') as fw:
+        session_id = fw.read()
+except FileNotFoundError:
+    session_id = None
+           
 
 class BotBase(commands.AutoShardedBot):
     def __init__(self, *args, **kwargs):
@@ -50,8 +59,24 @@ class BotBase(commands.AutoShardedBot):
 
 
     async def loadNode(self):
-        await self.pool.create_node(host=host, port=port, password=password, label=label)
-        
+        for nodes in data:
+            for f in range(5):
+                try:
+                    await self.pool.create_node(host=nodes['host'], 
+                                                port=nodes['port'], 
+                                                password=nodes['password'], 
+                                                label=nodes['label'], 
+                                                resuming_session_id=session_id)
+                except Exception as e:
+                    logging.error(f"Đã xảy ra sự cố khi kết nối đến lavalink {e}")
+                    
+                else:
+                    break
+    
+    async def on_node_ready(self, node: Node):
+        with open('lavalinksessionkey.ini', 'w') as fw:
+            fw.write(node.session_id)
+    
     async def on_close(self):
         await self.database.connection.close()
 
