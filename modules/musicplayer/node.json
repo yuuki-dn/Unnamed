@@ -1,7 +1,0 @@
-{
-    "label": "lavalink_v1",
-    "host": "127.0.0.1",
-    "port": 8090,
-    "password": "youshallnotpass",
-    "secure": false
-}
