@@ -1,0 +1,9 @@
+[
+  {
+      "host": "localhost",
+      "port": 4000,
+      "label": "Localhost",
+      "password": "Yuuki.Yuuki",
+      "secure": false
+  }
+]

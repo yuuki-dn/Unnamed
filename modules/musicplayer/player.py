@@ -7,14 +7,17 @@ from botbase import BotBase
 from mafic import Player, Track
 from random import randint
 
+
 from collections import deque
 
 MessageableChannel = Union[disnake.TextChannel, disnake.Thread, disnake.VoiceChannel, disnake.StageChannel, disnake.PartialMessageable]
+
 
 class LoopMode(enumerate):
 	OFF = 0
 	SONG = 1
 	PLAYLIST = 2
+
 
 class Queue:
 	def __init__(self):
@@ -84,14 +87,32 @@ class VoiceSessionHandler(Player[BotBase]):
 		self.notification_channel: MessageableChannel = None
 
 
-	async def next(self):
+	async def next(self) -> bool:
 		track = self.queue.next()
 		if track is None:
-			if self.notification_channel is not None:
-				await self.notification_channel.send("Danh sách chờ đã hết! Bot sẽ tự động rời khỏi kênh thoại của bạn")
-			return
-		await self.play(track)
+			return False
+		await self.play(track, replace=True)
+		if self.notification_channel is not None:
+			await self.notification_channel.send(embed=create_embed(track.title, track.source, track.artwork_url, track.length))
+		return True
+
+	async def previous(self) -> bool:
+		track = self.queue.previous()
+		if track is None:
+			return False
+		await self.play(track, replace=True)
 		if self.notification_channel is not None:
 			await self.notification_channel.send(f"Đang phát: {track.title}")
+		return True
 
-
+	async def _continue(self):
+		# idk, co khi no no day
+		track = self.queue._continue()
+		if track is None:
+			if self.notification_channel is not None:
+				await self.notification_channel.send("Danh sách chờ đã hết. Bot sẽ rời khỏi kênh của bạn")
+			await self.disconnect(force=True)
+			return
+		await self.play(track, replace=True)
+		if self.notification_channel is not None:
+			await self.notification_channel.send(embed=create_embed(track.title, track.source, track.artwork_url, track.length))

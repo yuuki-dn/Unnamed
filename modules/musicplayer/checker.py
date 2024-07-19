@@ -13,14 +13,17 @@ def is_voice_connectable(func):
 			if not perms.connect:
 				await inter.edit_original_response("Tôi không có quyền để kết nối vào kênh thoại của bạn")
 				return
-		func(inter, *args, **kwargs)
+
+		await func(inter, *args, **kwargs)
+
 	return wrapper
 
 
-def is_voice_member(func):
+def is_player_member(func):
 	"Checker decorator"
 	async def wrapper(inter: disnake.ApplicationCommandInteraction, *args, **kwargs):
 		player: VoiceSessionHandler = inter.author.guild.voice_client
+
 		if not player:
 			await inter.edit_original_response("Hiện tại tôi đang không phát nhạc trên máy chủ")
 			return
@@ -32,6 +35,7 @@ def is_voice_member(func):
 		if inter.author.id not in inter.guild.me.voice.channel.voice_states:
 			await inter.edit_original_response("Bạn cần ở trong kênh thoại của tôi để sử dụng lệnh này")
 			return
-		func(inter, *args, **kwargs)
+
+		await func(inter, player=player, *args, **kwargs)
 
 	return wrapper
