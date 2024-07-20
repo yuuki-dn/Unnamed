@@ -161,7 +161,7 @@ class QueueInterface(disnake.ui.View):
 				duration = time_format(t.length) if not t.stream else '🔴 Livestream'
 
 				txt += f"`┌ {counter})` [`{fix_characters(t.title, limit=50)}`]({t.uri})\n" \
-					   f"`└ ⏲️ {duration}`"
+					   f"`└ ⏲️ {duration}`\n"
 
 				opts.append(
 					disnake.SelectOption(
