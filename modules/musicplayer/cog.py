@@ -170,6 +170,10 @@ class Music(commands.Cog):
 		else:
 			await inter.edit_original_response("Không có bài hát nào đã phát trước đó")
 
+	@commands.cooldown(1, 20, commands.BucketType.guild)
+	@commands.slash_command(name="queue_display", description="Hiển thị danh sách chờ")
+	async def queuedisplay(self):
+		...
 
 
 	@commands.Cog.listener()
