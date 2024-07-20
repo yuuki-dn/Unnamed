@@ -1,6 +1,6 @@
 from botbase import BotBase
 
-from .player import VoiceSessionHandler
+from .player import VoiceSessionHandler, QueueInterface
 from .checker import is_player_member, is_voice_connectable
 
 import disnake
@@ -26,10 +26,12 @@ class Music(commands.Cog):
 		self.bot: BotBase = bot
 		self.logger: logging.Logger = logging.getLogger(__name__)
 
-		self.bot.pool = NodePool(self.bot)
+		self.pool = NodePool(self.bot)
 		self.bot.loop.create_task(self.load_node())
 
 	async def load_node(self):
+		self.aval_node: list[Node] = []
+		self.failed_node: list[Node] = []
 		with open("modules/musicplayer/node.json", 'r') as config:
 			data: list = json.loads(config.read())
 
@@ -41,13 +43,17 @@ class Music(commands.Cog):
 
 		for node in data:
 			try:
-				await self.bot.pool.create_node(host=node['host'],
+				await self.pool.create_node(host=node['host'],
 												port=node['port'],
 												password=node['password'],
 												label=node['label'],
 												resuming_session_id=session_id)
+				self.aval_node.append(node)
 			except Exception as e:
-				self.logger.error(f"Đã xảy ra sự cố khi kết nối đến lavalink {e}")
+				self.logger.error(f"Đã xảy ra sự cố khi kết nối đến lavalink {node['host']}: {e}")
+				self.failed_node.append(node)
+			else:
+				break
 
 	@commands.Cog.listener()
 	async def on_node_ready(self, node: Node):
@@ -100,7 +106,7 @@ class Music(commands.Cog):
 				color=0xFFFFFF
 			)
 
-			embed.description = f"`{result.tracks.__len__()} bài hát | {time_format(total_time, use_names=True)}`"
+			embed.description = f"`{result.tracks.__len__()} bài hát | {time_format(total_time)}`"
 			embed.set_thumbnail(result.tracks[0].artwork_url)
 
 			await inter.edit_original_response(embed=embed)
@@ -113,10 +119,8 @@ class Music(commands.Cog):
 				url=track.uri,
 				color=0xFFFFFF
 			)
-			# time = track.length // 1000
-			# minutes = time // 60
-			# seconds = time % 60
-			embed.description = f"`{track.author} | {time_format(track.length, use_names=True)}`"
+
+			embed.description = f"`{track.author} | {time_format(track.length)}`"
 			embed.set_thumbnail(track.artwork_url)
 
 			await inter.edit_original_response(embed=embed)
@@ -172,9 +176,59 @@ class Music(commands.Cog):
 
 	@commands.cooldown(1, 20, commands.BucketType.guild)
 	@commands.slash_command(name="queue_display", description="Hiển thị danh sách chờ")
-	async def queuedisplay(self):
-		...
+	@is_player_member
+	async def queuedisplay(self, inter: disnake.ApplicationCommandInteraction, player: VoiceSessionHandler):
+		await inter.response.defer()
+		if not player.queue.upcoming:
+			return await inter.edit_original_response("Không có bài hát trong hàng đợi")
 
+		view = QueueInterface(player=player)
+		embed = view.embed
+
+		kwargs = {
+			"embed": embed,
+			"view": view
+		}
+		try:
+			func = inter.followup.send
+			kwargs["ephemeral"] = True
+		except AttributeError:
+			func = inter.send
+			kwargs["ephemeral"] = True
+
+		view.message = await func(**kwargs)
+
+		await view.wait()
+
+	# @is_player_member
+	# @commands.slash_command(name="change_node", description="Đổi máy chủ phát nhạc")
+	# async def change_node(
+	# 		self,
+	# 		inter: disnake.AppCmdInter,
+	# 		player: VoiceSessionHandler,
+	# 		node: str = commands.Param(name="server", description="Máy chủ âm nhạc")
+	# ):
+	# 	await inter.response.defer()
+	# 	if node not in self.aval_node:
+	# 		await inter.edit_original_response(f"Máy chủ âm nhạc **{node}** không tìm thấy.")
+	# 		return
+	#
+	# 	if node == player.node:
+	# 		await inter.edit_original_response(f"Người chơi đã ở trên máy chủ âm nhạc **{node}**.")
+	# 		return
+	#
+	# 	await player.transfer_to(node)
+	# 	await inter.edit_original_response(f"Di chuyển trình phát sang máy chủ âm nhạc **{node}**")
+	#
+	# @change_node.autocomplete("node")
+	# async def node_suggestions(self, inter: disnake.Interaction, query: str):
+	#
+	# 	node: list[Node] = self.aval_node
+	#
+	# 	if not query:
+	# 		return [n.label for n in node]
+	#
+	# 	return [n.label for n in node and query.lower() in n.label.lower()] -> chưa test, hãy sửa
 
 	@commands.Cog.listener()
 	async def on_track_end(self, event: TrackEndEvent[VoiceSessionHandler]):
@@ -186,5 +240,7 @@ class Music(commands.Cog):
 			await player.notification_channel.send(f"Đã có lỗi xảy ra khi tải bài hát {player.queue.current_track.title}")
 			self.logger.warning(f"Tải bài hát được yêu cầu ở máy chủ {player.guild.id} thất bại")
 			await player.next()
+
+
 
 
