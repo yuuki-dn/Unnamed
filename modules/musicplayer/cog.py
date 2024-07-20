@@ -1,6 +1,6 @@
 from botbase import BotBase
 
-from .player import VoiceSessionHandler, create_embed
+from .player import VoiceSessionHandler
 from .checker import is_player_member, is_voice_connectable
 
 import disnake
@@ -8,7 +8,9 @@ import logging
 import json
 
 from mafic import Track, Playlist, PlayerNotConnected, TrackEndEvent, NodePool, Node
+from mafic.events import EndReason
 from disnake.ext import commands
+from utils.conv import time_format
 
 
 def limit_text_size(text: str, size: int) -> str:
@@ -38,15 +40,14 @@ class Music(commands.Cog):
 			session_id = None
 
 		for node in data:
-			for f in range(5):
-				try:
-					await self.bot.pool.create_node(host=node['host'],
-													port=node['port'],
-													password=node['password'],
-													label=node['label'],
-													resuming_session_id=session_id)
-				except Exception as e:
-					self.logger.error(f"Đã xảy ra sự cố khi kết nối đến lavalink {e}")
+			try:
+				await self.bot.pool.create_node(host=node['host'],
+												port=node['port'],
+												password=node['password'],
+												label=node['label'],
+												resuming_session_id=session_id)
+			except Exception as e:
+				self.logger.error(f"Đã xảy ra sự cố khi kết nối đến lavalink {e}")
 
 	@commands.Cog.listener()
 	async def on_node_ready(self, node: Node):
@@ -54,6 +55,7 @@ class Music(commands.Cog):
 			fw.write(node.session_id)
 
 
+	@commands.cooldown(1, 5, commands.BucketType.guild)
 	@commands.slash_command(
 		name="play",
 		description="Phát một bản nhạc trên kênh thoại",
@@ -93,35 +95,35 @@ class Music(commands.Cog):
 
 			thumbnail_track = result.tracks[0]
 			embed = disnake.Embed(
-				title=limit_text_size(thumbnail_track.title),
+				title=limit_text_size(thumbnail_track.title, 32),
 				url=thumbnail_track.uri,
 				color=0xFFFFFF
 			)
-			minutes = total_time // 60
-			seconds = total_time % 60
-			embed.description = f"`{result.tracks.__len__()} bài hát | {minutes}:{seconds if seconds >= 10 else '0' + str(seconds)}`"
+
+			embed.description = f"`{result.tracks.__len__()} bài hát | {time_format(total_time, use_names=True)}`"
 			embed.set_thumbnail(result.tracks[0].artwork_url)
 
 			await inter.edit_original_response(embed=embed)
 
 		elif isinstance(result, list):
-			track = result[0]
+			track: Track = result[0]
 			player.queue.add(track)
 			embed = disnake.Embed(
-				title=limit_text_size(track.title),
+				title=limit_text_size(track.title, 32),
 				url=track.uri,
 				color=0xFFFFFF
 			)
-			minutes = track.length // 60
-			seconds = track.length % 60
-			embed.description = f"`{track.__len__()} bài hát | {minutes}:{seconds if seconds >= 10 else '0' + str(seconds)}`"
+			# time = track.length // 1000
+			# minutes = time // 60
+			# seconds = time % 60
+			embed.description = f"`{track.author} | {time_format(track.length, use_names=True)}`"
 			embed.set_thumbnail(track.artwork_url)
 
 			await inter.edit_original_response(embed=embed)
 
 
 		if not begined:
-			await player.next()
+			await player._continue()
 
 	@commands.slash_command(name="stop", description="Dừng phát nhạc")
 	@commands.guild_only()
@@ -148,18 +150,16 @@ class Music(commands.Cog):
 			await player.pause()
 			await inter.edit_original_response(f"Đã tạm dừng bài hát")
 
-
+	@commands.cooldown(1, 10, commands.BucketType.guild)
 	@commands.slash_command(name="next", description="Phát bài hát tiếp theo")
 	@commands.guild_only()
 	@is_player_member
 	async def next(self, inter: disnake.ApplicationCommandInteraction, player: VoiceSessionHandler):
 		await inter.response.defer()
-		result = await player.next()
-		if result:
-			await inter.edit_original_response("Đã chuyển sang bài hát tiếp theo")
-		else:
-			await inter.edit_original_response("Không có bài hát nào trong hàng đợi")
+		await player.next()
+		await inter.edit_original_response("Đã chuyển sang bài hát tiếp theo")
 
+	@commands.cooldown(1, 10, commands.BucketType.guild)
 	@commands.slash_command(name="prev", description="Phát lại bài hát trước đó")
 	@is_player_member
 	async def prev(self, inter: disnake.ApplicationCommandInteraction, player: VoiceSessionHandler):
@@ -175,5 +175,12 @@ class Music(commands.Cog):
 	@commands.Cog.listener()
 	async def on_track_end(self, event: TrackEndEvent[VoiceSessionHandler]):
 		player = event.player
-		await player._continue()
+		reason = event.reason
+		if reason == EndReason.FINISHED:
+			await player._continue()
+		elif reason == EndReason.LOAD_FAILED:
+			await player.notification_channel.send(f"Đã có lỗi xảy ra khi tải bài hát {player.queue.current_track.title}")
+			self.logger.warning(f"Tải bài hát được yêu cầu ở máy chủ {player.guild.id} thất bại")
+			await player.next()
+
 

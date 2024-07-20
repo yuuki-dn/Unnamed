@@ -85,16 +85,19 @@ class VoiceSessionHandler(Player[BotBase]):
 		self.channel = channel
 		self.queue: Queue = Queue()
 		self.notification_channel: MessageableChannel = None
+		self.message_hook_id: int = None
 
 
-	async def next(self) -> bool:
-		track = self.queue.next()
+	async def next(self):
+		track = self.queue._continue()
 		if track is None:
-			return False
+			if self.notification_channel is not None:
+				await self.notification_channel.send("Danh sách chờ đã hết. Bot sẽ rời khỏi kênh của bạn")
+			await self.disconnect(force=True)
+			return
 		await self.play(track, replace=True)
 		if self.notification_channel is not None:
-			await self.notification_channel.send(embed=create_embed(track.title, track.source, track.artwork_url, track.length))
-		return True
+			await self.notification_channel.send(f"Đang phát: {track.title}")
 
 	async def previous(self) -> bool:
 		track = self.queue.previous()
@@ -106,7 +109,6 @@ class VoiceSessionHandler(Player[BotBase]):
 		return True
 
 	async def _continue(self):
-		# idk, co khi no no day
 		track = self.queue._continue()
 		if track is None:
 			if self.notification_channel is not None:
@@ -115,4 +117,4 @@ class VoiceSessionHandler(Player[BotBase]):
 			return
 		await self.play(track, replace=True)
 		if self.notification_channel is not None:
-			await self.notification_channel.send(embed=create_embed(track.title, track.source, track.artwork_url, track.length))
+			await self.notification_channel.send(f"Đang phát: {track.title}")

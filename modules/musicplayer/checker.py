@@ -3,7 +3,7 @@ from .player import VoiceSessionHandler
 
 def is_voice_connectable(func):
 	"Checker decorator"
-	async def wrapper(inter: disnake.ApplicationCommandInteraction, *args, **kwargs):
+	async def wrapper(self, inter: disnake.ApplicationCommandInteraction, **kwargs):
 		if not inter.author.voice:
 			await inter.response.send_message("Bạn hãy vào một kênh thoại để sử dụng lệnh này nhé")
 			return
@@ -14,14 +14,14 @@ def is_voice_connectable(func):
 				await inter.edit_original_response("Tôi không có quyền để kết nối vào kênh thoại của bạn")
 				return
 
-		await func(inter, *args, **kwargs)
+		await func(self, inter, **kwargs)
 
 	return wrapper
 
 
 def is_player_member(func):
 	"Checker decorator"
-	async def wrapper(inter: disnake.ApplicationCommandInteraction, *args, **kwargs):
+	async def wrapper(self, inter: disnake.ApplicationCommandInteraction, **kwargs):
 		player: VoiceSessionHandler = inter.author.guild.voice_client
 
 		if not player:
@@ -36,6 +36,6 @@ def is_player_member(func):
 			await inter.edit_original_response("Bạn cần ở trong kênh thoại của tôi để sử dụng lệnh này")
 			return
 
-		await func(inter, player=player, *args, **kwargs)
+		await func(self, inter, player=player, **kwargs)
 
 	return wrapper
