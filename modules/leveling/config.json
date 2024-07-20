@@ -1,7 +1,7 @@
 {
-    "chat_xp_min": 80,
-    "chat_xp_max": 110,
-    "chat_xp_cooldown": 15,
+    "chat_xp_min": 35,
+    "chat_xp_max": 60,
+    "chat_xp_cooldown": 45,
     "chat_effective_channel": [1255555849032564789, 1234059884043960401],
     "booster_extra_xp_percent": 10,
     "level_up_notification": true,

@@ -1,7 +1,9 @@
-{
-    "label": "lavalink_v1",
-    "host": "127.0.0.1",
-    "port": 8090,
-    "password": "youshallnotpass",
-    "secure": false
-}
+[
+  {
+      "host": "localhost",
+      "port": 4000,
+      "label": "Localhost",
+      "password": "Yuuki.Yuuki",
+      "secure": false
+  }
+]

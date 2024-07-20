@@ -4,7 +4,7 @@ import disnake
 from disnake.ext import commands
 import logging
 
-from modules.wordchain.dictionary import Dictionary, IllegalWordException, reform_word
+from .dictionary import Dictionary, IllegalWordException, reform_word
 from utils.cache import LRUCache
 from utils.guild_data import GuildData
 from utils.configuration import EPHEMERAL_AUDIT_ACTION, EPHEMERAL_ERROR_ACTION

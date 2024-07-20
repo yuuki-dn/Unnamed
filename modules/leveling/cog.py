@@ -7,7 +7,7 @@ import disnake
 from disnake.ext import commands
 
 from botbase import BotBase
-from modules.leveling.data import MemberXPData
+from .data import MemberXPData
 from utils.configuration import MASTER_GUILD_ID, EPHEMERAL_AUDIT_ACTION, EPHEMERAL_ERROR_ACTION
 
 MessageableChannel = disnake.TextChannel, disnake.Thread, disnake.VoiceChannel, disnake.StageChannel, disnake.PartialMessageable

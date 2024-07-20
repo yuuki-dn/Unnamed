@@ -5,7 +5,7 @@ import gc
 from modules.administrator.cog import AdminCommands
 from modules.chatbot.cog import ChatBot
 from modules.leveling.cog import LevelingCog
-from modules.musicplayer.cog import MusicPlayer
+from modules.musicplayer.cog import Music
 from modules.wordchain.cog import WordChain
 from modules.ErrorHandle.errorHandle import HandleError
 
@@ -23,7 +23,7 @@ bot = BotBase()
 bot.add_cog(AdminCommands(bot))
 bot.add_cog(ChatBot(bot))
 bot.add_cog(LevelingCog(bot))
-bot.add_cog(MusicPlayer(bot))
+bot.add_cog(Music(bot))
 bot.add_cog(WordChain(bot))
 bot.add_cog(HandleError(bot))
 
