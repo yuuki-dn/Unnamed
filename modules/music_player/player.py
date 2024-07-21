@@ -145,7 +145,7 @@ class VoiceSessionHandler(Player[BotBase]):
 
 
 	async def next(self):
-		track = self.queue._continue()
+		track = self.queue.next()
 		if track is None:
 			if self.notification_channel is not None:
 				await self.__send_notification__(embed=EMPTY_QUEUE)
@@ -234,7 +234,7 @@ def render_controller(player: VoiceSessionHandler) -> dict:
 		))
 		view.add_item(disnake.ui.Button(emoji="⏭️", custom_id="music_next", row=1))
 		view.add_item(disnake.ui.Button(emoji="⏹️", custom_id="music_stop", row=1))
-		view.add_item(disnake.ui.Button(emoji="🌐", style=disnake.ButtonStyle.link, url=track.uri))
+		view.add_item(disnake.ui.Button(emoji="🌐", style=disnake.ButtonStyle.link, url=track.uri, row=1))
 
 		return {"embed": embed, "view": view}
 

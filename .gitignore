@@ -8,5 +8,3 @@
 .env
 **/*.pyc
 **/*.log
-
-modules/music_player/node.json
