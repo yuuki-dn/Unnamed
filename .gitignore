@@ -9,5 +9,4 @@
 **/*.pyc
 **/*.log
 
-lavalinksessionkey.ini
-modules/musicplayer/node.json
+modules/music_player/node.json

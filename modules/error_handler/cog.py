@@ -5,10 +5,10 @@ import disnake
 from disnake.ext import commands
 
 from botbase import BotBase as ClientUser
-from utils.errors import ClientException, parse_error, paginator, send_message
+from .errors import ClientException, parse_error, paginator, send_message
 
 
-class HandleError(commands.Cog):
+class ErrorHandler(commands.Cog):
     def __init__(self, bot: ClientUser):
         self.bot = bot
 
@@ -18,9 +18,9 @@ class HandleError(commands.Cog):
     async def on_interaction_command_error(self, inter: disnake.AppCmdInter, error: Exception):
 
 
-        await self.hander_error_cmd(ctx=inter, error=error)
+        await self.handle_error_cmd(ctx=inter, error=error)
 
-    async def hander_error_cmd(self, ctx: disnake.ApplicationCommandInteraction, error: Exception):
+    async def handle_error_cmd(self, ctx: disnake.ApplicationCommandInteraction, error: Exception):
 
         if isinstance(error, ClientException):
             return
@@ -115,8 +115,7 @@ class HandleError(commands.Cog):
                     color=disnake.Colour.red(),
                     title=title_txt,
                     description=f"```py\n{repr(error)[:2030].replace(self.bot.http.token, 'mytoken')}```"
-                ).set_thumbnail(
-                    url="https://cdn.discordapp.com/attachments/1172052818501308427/1176426375704498257/1049220311318540338.png?ex=656ed370&is=655c5e70&hm=11d80b14a3ca28d04f7ac48d3a39b0c6d5947d20c9ae78cee9a4e511ce65f301&")
+                )
 
             else:
                 kwargs[
@@ -153,7 +152,3 @@ class HandleError(commands.Cog):
                 func = ctx.send
 
         await func(**kwargs)
-
-
-def setup(bot: ClientUser):
-    bot.add_cog(HandleError(bot))

@@ -14,7 +14,7 @@ replaces = [
     ("}", "\u0029"),
     ("`", "'")
 ]
-def fix_characters(text: str, limit: int = 0):
+def trim_text(text: str, limit: int = 0):
     for r in replaces:
         text = text.replace(r[0], r[1])
 

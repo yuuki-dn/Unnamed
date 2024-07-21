@@ -1,17 +1,26 @@
+import asyncio
 from typing import Optional, Union
 
 import disnake
 from disnake.abc import Connectable
 
 from botbase import BotBase
+
 from mafic import Player, Track
 from random import randint
 from typing import Optional
-from utils.conv import fix_characters, time_format
+from utils.converter import trim_text, time_format
 from collections import deque
 
 MessageableChannel = Union[disnake.TextChannel, disnake.Thread, disnake.VoiceChannel, disnake.StageChannel, disnake.PartialMessageable]
 
+
+SOURCE_LOGO = {
+	"youtube": "https://static.vecteezy.com/system/resources/previews/018/930/572/original/youtube-logo-youtube-icon-transparent-free-png.png",
+	"spotify": "https://i.pinimg.com/474x/30/6f/6a/306f6a14403921a4d8b4ab53d3c9f2a3.jpg",
+	"soundcloud": "https://img.freepik.com/premium-vector/soundcloud-logo_578229-231.jpg",
+}
+SOURCE_LOGO_DEFAULT = "https://cdn.discordapp.com/emojis/884721193381412884.gif?quality=lossless"
 
 class LoopMode(enumerate):
 	OFF = 0
@@ -85,49 +94,133 @@ class VoiceSessionHandler(Player[BotBase]):
 		self.channel = channel
 		self.queue: Queue = Queue()
 		self.notification_channel: MessageableChannel = None
-		self.message_hook_id: int = None
+		self.message_hook: list = None
+
+		self.__update_controller_lock__ = asyncio.Lock()
+		
+		
+	async def __send_notification__(self, **kwargs):
+		try:
+			await self.notification_channel.send(**kwargs)
+		except:
+			self.notification_channel = None
+
+
+	async def update_controller(self):
+		async with self.__update_controller_lock__:
+			replace = int(disnake.utils.utcnow().timestamp()) - self.message_hook[2] < 300
+			if self.message_hook is not None and not replace:
+				try:
+					await self.bot.http.delete_message(self.message_hook[0], self.message_hook[1])
+				finally:
+					self.message_hook = None
+			if self.notification_channel is not None:
+				try:
+					if replace and self.message_hook is not None:
+						await self.bot.http.edit_message(
+							channel_id=self.message_hook[0],
+							message_id=self.message_hook[1],
+							**render_controller(self)
+						)
+						self.message_hook[2] = int(disnake.utils.utcnow().timestamp())
+					else:
+						msg = await self.notification_channel.send(**render_controller(self))
+						self.message_hook = [self.notification_channel.id, msg.id, int(disnake.utils.utcnow().timestamp())]
+				except:
+					self.message_hook = None
+					self.notification_channel = None
 
 
 	async def next(self):
 		track = self.queue._continue()
 		if track is None:
 			if self.notification_channel is not None:
-				await self.notification_channel.send("Danh sách chờ đã hết. Bot sẽ rời khỏi kênh của bạn")
+				await self.__send_notification__(embed=EMPTY_QUEUE)
 			await self.disconnect(force=True)
 			return
 		await self.play(track, replace=True)
-		if self.notification_channel is not None:
-			try:
-				await self.notification_channel.send(
-					f"Đang phát: {track.title}, thời lượng: {time_format(track.length)}\n-# ↪ Bài hát tiếp theo: {self.queue.upcoming[0].title}, [URL](<{self.queue.upcoming[0].uri}>)")
-			except KeyError:
-				await self.notification_channel.send(
-					f"Đang phát: {track.title}, thời lượng: {time_format(track.length)}\n-# Đã hết bài hát trong hàng đợi")
+		await self.update_controller()
 
 	async def previous(self) -> bool:
 		track = self.queue.previous()
 		if track is None:
 			return False
 		await self.play(track, replace=True)
-		if self.notification_channel is not None:
-			await self.notification_channel.send(
-					f"Đang phát: {track.title}, thời lượng: {time_format(track.length)}\n-# ↪ Bài hát tiếp theo: {self.queue.upcoming[0].title}, [URL](<{self.queue.upcoming[0].uri}>)")
+		await self.update_controller()
 		return True
 
 	async def _continue(self):
 		track = self.queue._continue()
 		if track is None:
 			if self.notification_channel is not None:
-				await self.notification_channel.send("Danh sách chờ đã hết. Bot sẽ rời khỏi kênh của bạn")
+				await self.__send_notification__(embed=EMPTY_QUEUE)
 			await self.disconnect(force=True)
 			return
 		await self.play(track, replace=True)
-		if self.notification_channel is not None:
-			try:
-				await self.notification_channel.send(f"Đang phát: {track.title}, thời lượng: {time_format(track.length)}\n-# ↪ Bài hát tiếp theo: {self.queue.upcoming[0].title},[URL](<{self.queue.upcoming[0].uri}>)")
-			except KeyError:
-				await self.notification_channel.send(
-					f"Đang phát: {track.title}, thời lượng: {time_format(track.length)}\n-# Đã hết bài hát trong hàng đợi")
+		await self.update_controller()
+
+EMPTY_QUEUE = disnake.Embed(
+	title="👋 Danh sách chờ đã hết. Bot sẽ rời khỏi kênh của bạn",
+	color=0xFFFFFF
+)
+
+TRACK_LOAD_FAILED = disnake.Embed(
+	title="❌ Đã có lỗi xảy ra khi tìm kiếm bài hát được yêu cầu",
+	color=0xFF0000
+)
+
+
+def render_controller(player: VoiceSessionHandler) -> dict:
+	track = player.queue.current_track
+	embed = disnake.Embed(
+		title=trim_text(track.title, 32),
+		url=track.uri,
+		color=0xFFFFFF
+	)
+	embed.set_author(
+		name="Đang tạm dừng" if player.paused else f"Đang phát từ {track.source.capitalize()}",
+		icon_url=SOURCE_LOGO.get(track.source, SOURCE_LOGO_DEFAULT)
+	)
+	embed.set_thumbnail(track.artwork_url)
+
+	embed.add_field(name="👤 Tác giả", value=f"> `{track.author}`", inline=True)
+
+	embed.add_field(
+		name=("🔴" if track.stream else "🕒") + " Thời lượng",
+		value="> `Trực tiếp`" if track.stream else f"> `{time_format(track.length)}`",
+		inline=True
+	)
+
+	upcoming = player.queue.upcoming.__len__()
+	if upcoming != 0:
+		embed.add_field(name="📝 Hàng đợi", value=f"> `{upcoming} bài hát`", inline=True)
+
+	if player.queue.loop == LoopMode.PLAYLIST:
+		embed.add_field(name="🔁 Lặp lại", value="> `Danh sách phát`", inline=True)
+	elif player.queue.loop == LoopMode.SONG:
+		embed.add_field(name="🔂 Lặp lại", value="> `Bài hát hiện tại`", inline=True)
+
+	if player.queue.shuffle:
+		embed.add_field(name="🔀 Trộn bài", value="> `Bật`", inline=True)
+
+	embed.set_footer(
+		text=f"Máy chủ Lavalink: {player.node.label}",
+		icon_url="https://avatars.githubusercontent.com/u/133400169?v=4"
+	)
+
+	view = disnake.ui.View(timeout=(track.length // 1000) if not player.paused else None)
+	view.add_item(disnake.ui.Button(emoji="⏮️", custom_id="music_previous", row=1))
+	view.add_item(disnake.ui.Button(
+		style=disnake.ButtonStyle.primary if player.paused else disnake.ButtonStyle.secondary,
+		emoji="▶️" if player.paused else "⏸️",
+		custom_id="music_pause",
+		row=1
+	))
+	view.add_item(disnake.ui.Button(emoji="⏭️", custom_id="music_next", row=1))
+	view.add_item(disnake.ui.Button(emoji="⏹️", custom_id="music_stop", row=1))
+
+	return {"embed": embed, "view": view}
+
 
 class QueueInterface(disnake.ui.View):
 
@@ -160,7 +253,7 @@ class QueueInterface(disnake.ui.View):
 			for t in page:
 				duration = time_format(t.length) if not t.stream else '🔴 Livestream'
 
-				txt += f"`┌ {counter})` [`{fix_characters(t.title, limit=50)}`]({t.uri})\n" \
+				txt += f"`┌ {counter})` [`{trim_text(t.title, limit=50)}`]({t.uri})\n" \
 					   f"`└ ⏲️ {duration}`"
 
 				opts.append(
@@ -216,7 +309,7 @@ class QueueInterface(disnake.ui.View):
 		await self.message.edit(embed=embed, view=self)
 
 	def update_embed(self):
-		self.embed.title = f"**Các bài hát trong hàng [{self.current + 1} / {self.max_page + 1}]**"
+		self.embed.title = f"**Trang [{self.current + 1} / {self.max_page + 1}]**"
 		self.embed.description = self.pages[self.current]
 		self.children[0].options = self.selected[self.current]
 
