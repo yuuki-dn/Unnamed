@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 from typing import Optional, Union
 
 import disnake
@@ -202,7 +203,7 @@ def render_controller(player: VoiceSessionHandler) -> dict:
 
 		embed.add_field(
 			name=("🔴" if track.stream else "🕒") + " Thời lượng",
-			value="> `Trực tiếp`" if track.stream else f"> `{time_format(track.length)}`",
+			value="> `Trực tiếp`" if track.stream else f"> `{time_format(track.length)}`, {f'<t:{int((datetime.datetime.utcnow() + datetime.timedelta(milliseconds=track.length - track.position)).timestamp())}:R>' if not player.paused else 'Tạm dừng'}",
 			inline=True
 		)
 
@@ -273,7 +274,7 @@ class QueueInterface(disnake.ui.View):
 				duration = time_format(t.length) if not t.stream else '🔴 Livestream'
 
 				txt += f"`┌ {counter})` [`{trim_text(t.title, limit=50)}`]({t.uri})\n" \
-					   f"`└ ⏲️ {duration}`"
+					   f"`└ ⏲️ {duration}`\n"
 
 				opts.append(
 					disnake.SelectOption(
