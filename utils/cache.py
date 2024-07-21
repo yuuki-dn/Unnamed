@@ -1,3 +1,4 @@
+from typing import Optional
 from datetime import datetime
 
 def get_current_time() -> int:
@@ -10,8 +11,8 @@ class LRUCacheNode:
         self.key = key
         self.value = value
         self.last_access_timestamp: int = get_current_time()
-        self.prev_key: object | None = None
-        self.next_key: object | None = None
+        self.prev_key: Optional[object] = None
+        self.next_key: Optional[object] = None
         
 
 class LRUCache:
@@ -52,7 +53,7 @@ class LRUCache:
         
         self.tail_key = key
 
-    def get(self, key: object) -> object | None:
+    def get(self, key: object) -> Optional[object]:
         "Remember to handle KeyError"
         if key not in self.cache:
             raise KeyError(f"Key {key} not found")

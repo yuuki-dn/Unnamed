@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+from typing import Optional
 from utils.database import Database
 from utils.cache import LRUCache
 
@@ -47,7 +46,7 @@ class GuildData:
         self.guild_cache: LRUCache = LRUCache(100, 600)
         self.reaction_role_message_cache: LRUCache = LRUCache(1000, 600)
 
-    async def __fetch_reaction_role_message__(self, message_id: int, guild_id: int) -> ReactionRoleMessageEntity | None:
+    async def __fetch_reaction_role_message__(self, message_id: int, guild_id: int) -> Optional[ReactionRoleMessageEntity]:
         try:
             result: list = await self.database.execute_query(
                 "SELECT emoji, role_id FROM reaction_role_messages WHERE message_id = %s AND guild_id = %s",
@@ -62,7 +61,7 @@ class GuildData:
             self.logger.error(f"Truy vấn dữ liệu cho tin nhắn với ID: {message_id} thất bại\n" + repr(err))
             return None
 
-    async def __fetch_guild__(self, guild_id: int) -> GuildEntity | None:
+    async def __fetch_guild__(self, guild_id: int) -> Optional[GuildEntity]:
         try:
             result = await self.database.execute_query("SELECT wordchain_channel_id FROM guilds WHERE guild_id = %s;", guild_id)
             if result.__len__() == 0:
@@ -76,7 +75,7 @@ class GuildData:
             self.logger.error(f"Truy vấn dữ liệu cho máy chủ với ID: {guild_id} thất bại\n" + repr(err))
             return None
 
-    async def get_guild(self, guild_id: int, create_if_not_exist: bool = True) -> GuildEntity | None:
+    async def get_guild(self, guild_id: int, create_if_not_exist: bool = True) -> Optional[GuildEntity]:
         try:
             entity = self.guild_cache.get(guild_id)
         except KeyError:
