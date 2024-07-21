@@ -1,3 +1,5 @@
+from typing import Optional
+
 from botbase import BotBase
 from utils.configuration import MASTER_GUILD_ID, EPHEMERAL_AUDIT_ACTION, EPHEMERAL_ERROR_ACTION
 from utils.guild_data import GuildData, ReactionRoleMessageEntity
@@ -11,7 +13,7 @@ import re
 
 DISCORD_EMOJI_PATTERN =  re.compile(r'<a?:.+?:\d{18,20}>')
 
-def parse_emoji(text: str) -> str | None:
+def parse_emoji(text: str) -> Optional[str]:
     # if text is emoji return unique ID, None otherwise
     text = text.strip()
     if DISCORD_EMOJI_PATTERN.fullmatch(text) is not None: return text.split(":")[-1][: -1]

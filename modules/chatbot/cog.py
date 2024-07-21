@@ -3,7 +3,7 @@ import disnake
 
 from botbase import BotBase
 import google.generativeai as Gemini
-from disnake import AppCommandInter, Option, OptionType, OptionChoice, Embed, Color, File
+from disnake import AppCommandInter, Option, OptionType, OptionChoice, File
 from disnake.ext import commands
 
 
@@ -22,12 +22,30 @@ class ChatBot(commands.Cog):
 
 
 	@commands.cooldown(1, 30, commands.BucketType.user)
-	@commands.slash_command(name="chat", description="Chat với một mô hình AI", options = [
-		Option(name="content", description="Nội dung của bạn", type=OptionType.string, required=True),
-		Option(name="model", description="Mô hình chatbot bạn muốn sử dụng", type=OptionType.string, required=False, choices=[
-			OptionChoice(name="Gemini", value="gemini")
-		])
-	])
+	@commands.slash_command(
+		name="chat",
+		description="Chat với một mô hình AI",
+		options=[
+			Option(
+				name="content",
+				description="Nội dung của bạn",
+				type=OptionType.string,
+				max_length=1000,
+				required=True
+			),
+			Option(
+				name="model",
+				description="Mô hình chatbot bạn muốn sử dụng",
+				type=OptionType.string,
+				required=False,
+				min_length=4,
+				max_length=10,
+				choices=[
+					OptionChoice(name="Gemini", value="gemini")
+				]
+			)
+		]
+	)
 	async def chat(self, inter: AppCommandInter, content: str = None, model: str = "gemini"):
 		await inter.response.defer()
 		if len(content) > 1000:

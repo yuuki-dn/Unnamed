@@ -1,6 +1,6 @@
 from botbase import BotBase
 
-from .player import VoiceSessionHandler, QueueInterface, TRACK_LOAD_FAILED
+from .player import VoiceSessionHandler, QueueInterface, TRACK_LOAD_FAILED, LoopMode
 from .checker import is_player_member, is_voice_connectable
 
 import disnake
@@ -49,6 +49,7 @@ class Music(commands.Cog):
 				name="search",
 				description="Tên hoặc link bài hát",
 				required=True,
+				max_length=100,
 				type=disnake.OptionType.string
 			)
 		]
@@ -92,7 +93,7 @@ class Music(commands.Cog):
 					url=track.uri,
 					color=0xFFFFFF
 				)
-				embed.description = f"`{track.source} | {track.author}"
+				embed.description = f"`{track.source.capitalize()} | {track.author}"
 				if track.stream:
 					embed.description += " | 🔴 LIVESTREAM`"
 				else:
@@ -117,11 +118,7 @@ class Music(commands.Cog):
 	async def stop(self, inter: disnake.ApplicationCommandInteraction, player: VoiceSessionHandler):
 		await inter.response.defer()
 		player.notification_channel = inter.channel
-		try:
-			await player.disconnect()
-			await self.bot.http.delete_message(channel_id=player.message_hook[0], message_id=player.message_hook[1])
-		except:
-			pass
+		await player.disconnect(force=True)
 		await inter.edit_original_response(
 			embed=disnake.Embed(
 				title="⏹️ Đã dừng phát nhạc",
@@ -190,6 +187,51 @@ class Music(commands.Cog):
 		pass
 
 
+	@queue.sub_command(
+		name="loop",
+		description="Phát liên tục bài hát hiện tại hoặc toàn bộ danh sách phát",
+		options=[
+			disnake.Option(
+				name="mode",
+				description="Chế độ",
+				type=disnake.OptionType.integer,
+				choices=[
+					disnake.OptionChoice(name="Tắt", value=LoopMode.OFF),
+					disnake.OptionChoice(name="Bài hát hiện tại", value=LoopMode.SONG),
+					disnake.OptionChoice(name="Toàn bộ danh sách phát", value=LoopMode.PLAYLIST)
+				],
+				min_value=0,
+				max_length=0,
+				required=True
+			)
+		]
+	)
+	@is_player_member
+	async def loop_mode(self, inter: disnake.ApplicationCommandInteraction, player: VoiceSessionHandler, mode = LoopMode.OFF):
+		if mode not in (LoopMode.OFF, LoopMode.SONG, LoopMode.PLAYLIST):
+			await inter.send(embed=disnake.Embed(
+				title="❌ Giá trị nhập vào không hợp lệ",
+				color=0xFF0000
+			))
+			return
+		player.queue.loop = mode
+		await inter.send(embed=disnake.Embed(
+			title="✅ Đã thay đổi chế độ phát liên tục",
+			color=0x00FF00
+		))
+		await player.update_controller()
+
+	@queue.sub_command(name="shuffle", description="Bật (tắt) chế độ phát ngẫu nhiên bài hát trong hàng chờ")
+	@is_player_member
+	async def loop_mode(self, inter: disnake.ApplicationCommandInteraction, player: VoiceSessionHandler):
+		player.queue.shuffle = not player.queue.shuffle
+		await inter.send(embed=disnake.Embed(
+			title="✅ Đã thay đổi chế độ phát ngẫu nhiên",
+			color=0x00FF00
+		))
+		await player.update_controller()
+
+
 	@commands.cooldown(1, 20, commands.BucketType.guild)
 	@queue.sub_command(name="show", description="Hiển thị danh sách chờ")
 	@is_player_member
@@ -242,18 +284,60 @@ class Music(commands.Cog):
 
 	@commands.Cog.listener()
 	async def on_button_click(self, inter: disnake.MessageInteraction):
+		if inter.guild_id is None:
+			return
 		if not isinstance(inter.component, disnake.Button):
-			pass
+			return
 		button_id = inter.component.custom_id
-		if button_id == "music_previous":
-			await self.prev(inter=inter)
+		if not button_id.startswith("music_"):
+			return
 
+		player: VoiceSessionHandler = inter.author.guild.voice_client
+
+		if not player:
+			await inter.send(
+				embed=disnake.Embed(
+					title="⚠️ Hiện tại bot không phát nhạc trên máy chủ",
+					color=0xFFFF00
+				),
+				ephemeral=True
+			)
+			return
+
+		if not (inter.author.voice and inter.author.id in inter.guild.me.voice.channel.voice_states):
+			await inter.send(
+				embed=disnake.Embed(
+					title="⚠️ Bạn hãy vào kênh bot đang phát nhạc để sử dụng lệnh này nhé",
+					color=0xFFFF00
+				),
+				ephemeral=True
+			)
+			return
+
+		if button_id == "music_previous":
+			if not await player.previous():
+				await inter.send(
+					embed=disnake.Embed(
+						title="⚠️ Không có bài hát nào đã phát trước đó",
+						color=0xFFFF00
+					),
+					ephemeral=True
+				)
 
 		elif button_id == "music_pause":
-			await self.pause(inter=inter)
+			if player.paused:
+				await player.resume()
+			else:
+				await player.pause()
 
 		elif button_id == "music_next":
-			await self.next(inter=inter)
+			await player.next()
 
 		elif button_id == "music_stop":
-			await self.stop(inter=inter)
+			await player.disconnect(force=True)
+
+		else:
+			return
+
+		if button_id != "music_stop":
+			await player.update_controller()

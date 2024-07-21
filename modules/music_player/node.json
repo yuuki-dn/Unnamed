@@ -1,8 +1,8 @@
 [
   {
-      "host": "localhost",
-      "port": 4000,
-      "label": "Localhost",
-      "password": "Yuuki.Yuuki"
+      "host": "node.lavalink.rocks",
+      "port": 80,
+      "label": "node.lavalink.rocks",
+      "password": "horizxon.tech"
   }
 ]
